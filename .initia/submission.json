@@ -1,0 +1,11 @@
+{
+  "chain_id": "kitpot-1",
+  "contracts": {
+    "KitpotCircle": "0xTODO",
+    "KitpotReputation": "0xTODO",
+    "KitpotAchievements": "0xTODO",
+    "MockUSDC": "0xTODO"
+  },
+  "demo_url": "https://kitpot.vercel.app",
+  "video_url": "https://youtu.be/TODO"
+}

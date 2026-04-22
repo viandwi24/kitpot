@@ -1,0 +1,57 @@
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatUSDC } from "@/lib/utils";
+import type { CircleData, MemberData } from "@/hooks/use-circles";
+
+interface TurnOrderProps {
+  circle: CircleData;
+  members: MemberData[];
+}
+
+export function TurnOrder({ circle, members }: TurnOrderProps) {
+  const totalPot = circle.contributionAmount * circle.maxMembers;
+  const fee = totalPot / 100n;
+  const payout = totalPot - fee;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Turn Order</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {members.map((member, i) => {
+            const cycleIndex = BigInt(i);
+            const isCompleted = cycleIndex < circle.currentCycle;
+            const isCurrent = cycleIndex === circle.currentCycle && circle.status === 1;
+            const isUpcoming = cycleIndex > circle.currentCycle;
+
+            return (
+              <div
+                key={member.addr}
+                className={`flex items-center justify-between rounded-xl px-4 py-2.5 ${
+                  isCurrent ? "bg-primary/10 border border-primary/20" : "bg-secondary"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Cycle {(cycleIndex + 1n).toString()}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {member.initUsername || member.addr.slice(0, 10) + "..."}
+                  </span>
+                </div>
+                <span className="text-xs">
+                  {isCompleted && <span className="text-primary">Received {formatUSDC(payout)} USDC</span>}
+                  {isCurrent && <span className="font-medium text-primary">Current</span>}
+                  {isUpcoming && <span className="text-muted-foreground">Upcoming</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

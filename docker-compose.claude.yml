@@ -1,0 +1,20 @@
+services:
+  claude:
+    build:
+      context: .
+      dockerfile: Dockerfile.claude
+    volumes:
+      - ./:/workspace
+      - claude-home:/home/claude
+    working_dir: /workspace
+    stdin_open: true
+    user: claude
+    tty: true
+    command: sleep infinity
+    environment:
+      # Force Claude Code to keep extended thinking on every turn (disables
+      # the adaptive heuristic that silently skips thinking on "easy" prompts).
+      CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING: "1"
+
+volumes:
+  claude-home:

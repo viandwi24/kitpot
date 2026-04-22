@@ -1,0 +1,13 @@
+{
+  "name": "kitpot",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "bun --cwd apps/web dev",
+    "build": "bun --cwd apps/web build",
+    "test:contracts": "forge test --root contracts -vv"
+  },
+  "devDependencies": {
+    "viem": "^2.48.4"
+  }
+}
