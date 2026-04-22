@@ -1,12 +1,18 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { defineChain } from "viem";
+import {
+  InterwovenKitProvider,
+  initiaPrivyWalletConnector,
+  injectStyles,
+  TESTNET,
+} from "@initia/interwovenkit-react";
+import InterwovenKitStyles from "@initia/interwovenkit-react/styles.js";
 import { CHAIN_CONFIG } from "@/lib/contracts";
 
-// Define the kitpot-1 rollup chain
 const kitpotChain = defineChain({
   id: CHAIN_CONFIG.chainId,
   name: "Kitpot",
@@ -18,6 +24,7 @@ const kitpotChain = defineChain({
 
 const wagmiConfig = createConfig({
   chains: [kitpotChain],
+  connectors: [initiaPrivyWalletConnector],
   transports: {
     [kitpotChain.id]: http(),
   },
@@ -26,19 +33,18 @@ const wagmiConfig = createConfig({
 
 const queryClient = new QueryClient();
 
-// NOTE: InterwovenKitProvider and PrivyProvider are commented out until
-// packages are installed in Plan 10. Uncomment and wrap children when ready.
-//
-// import { InterwovenKitProvider } from "@initia/interwovenkit-react";
-// import { PrivyProvider } from "@privy-io/react-auth";
-
 export function Providers({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    injectStyles(InterwovenKitStyles);
+  }, []);
+
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        {/* TODO: Wrap with PrivyProvider + InterwovenKitProvider after install */}
-        {children}
-      </QueryClientProvider>
-    </WagmiProvider>
+    <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={wagmiConfig}>
+        <InterwovenKitProvider {...TESTNET} theme="dark">
+          {children}
+        </InterwovenKitProvider>
+      </WagmiProvider>
+    </QueryClientProvider>
   );
 }

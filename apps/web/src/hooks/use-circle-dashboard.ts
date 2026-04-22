@@ -10,6 +10,7 @@ export function useCyclePaymentStatus(circleId: bigint) {
     abi: KITPOT_ABI,
     functionName: "getCyclePaymentStatus",
     args: [circleId],
+    query: { refetchInterval: 3000 },
   });
 }
 
@@ -19,6 +20,7 @@ export function useCurrentCycleInfo(circleId: bigint) {
     abi: KITPOT_ABI,
     functionName: "getCurrentCycleInfo",
     args: [circleId],
+    query: { refetchInterval: 3000 },
   });
 }
 
@@ -37,6 +39,6 @@ export function useHasPaid(circleId: bigint, cycle: bigint, address: `0x${string
     abi: KITPOT_ABI,
     functionName: "hasPaid",
     args: address ? [circleId, cycle, address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 3000 },
   });
 }

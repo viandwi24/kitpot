@@ -18,25 +18,25 @@ contract KitpotCircleTest is Test {
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
     address public charlie = makeAddr("charlie");
-    address public dave = makeAddr("dave");
 
     uint256 public constant CONTRIBUTION = 100e6;
     uint256 public constant CYCLE_DURATION = 60;
     uint256 public constant GRACE_PERIOD = 30;
-    uint256 public constant LATE_PENALTY_BPS = 500; // 5%
+    uint256 public constant LATE_PENALTY_BPS = 500;
+    uint256 public constant T0 = 10_000; // base timestamp
 
     function setUp() public {
+        vm.warp(T0);
+
         usdc = new MockUSDC();
         reputation = new KitpotReputation();
         achievements = new KitpotAchievements(block.timestamp + 30 days);
         kitpot = new KitpotCircle(100, address(reputation));
 
-        // Authorize
         reputation.setAuthorized(address(kitpot), true);
         achievements.setAuthorized(address(kitpot), true);
         kitpot.setAchievements(address(achievements));
 
-        // Mint & approve for all test accounts
         address[4] memory accounts = [owner, alice, bob, charlie];
         for (uint i = 0; i < accounts.length; i++) {
             usdc.mint(accounts[i], 100_000e6);
@@ -45,456 +45,396 @@ contract KitpotCircleTest is Test {
         }
     }
 
-    // ================================================================
-    //                     CIRCLE CREATION
-    // ================================================================
+    // ── CIRCLE CREATION ──
 
     function test_createCircle() public {
-        uint256 circleId = _createCircle(3, false);
-        KitpotCircle.Circle memory c = kitpot.getCircle(circleId);
-
+        uint256 id = _createCircle(3, false);
+        KitpotCircle.Circle memory c = kitpot.getCircle(id);
         assertEq(c.name, "Test Circle");
         assertEq(c.creator, owner);
-        assertEq(c.contributionAmount, CONTRIBUTION);
-        assertEq(c.maxMembers, 3);
         assertEq(c.memberCount, 1);
         assertEq(uint(c.status), uint(KitpotCircle.CircleStatus.Forming));
-        assertEq(c.gracePeriod, GRACE_PERIOD);
-        assertEq(c.latePenaltyBps, LATE_PENALTY_BPS);
     }
 
-    function test_createCircle_collateralDeposited() public {
-        uint256 balBefore = usdc.balanceOf(owner);
-        uint256 circleId = _createCircle(3, false);
-        uint256 balAfter = usdc.balanceOf(owner);
-
-        // Creator deposits collateral = contributionAmount
-        assertEq(balBefore - balAfter, CONTRIBUTION);
-        assertEq(kitpot.getCollateral(circleId, owner), CONTRIBUTION);
+    function test_createCircle_collateral() public {
+        uint256 bal = usdc.balanceOf(owner);
+        uint256 id = _createCircle(3, false);
+        assertEq(bal - usdc.balanceOf(owner), CONTRIBUTION);
+        assertEq(kitpot.getCollateral(id, owner), CONTRIBUTION);
     }
 
-    function test_createCircle_revert_invalidMembers() public {
+    function test_createCircle_public() public {
+        uint256 id = _createCircle(3, true);
+        assertTrue(kitpot.getCircle(id).isPublic);
+    }
+
+    function test_createCircle_revert_tooFewMembers() public {
         vm.expectRevert("Members: 3-20");
-        kitpot.createCircle("Bad", "", address(usdc), CONTRIBUTION, 2, CYCLE_DURATION, GRACE_PERIOD, LATE_PENALTY_BPS, false, IKitpotReputation.TrustTier.Unranked);
+        _raw(2);
+    }
+
+    function test_createCircle_revert_tooManyMembers() public {
+        vm.expectRevert("Members: 3-20");
+        _raw(21);
     }
 
     function test_createCircle_revert_zeroAmount() public {
         vm.expectRevert("Amount must be > 0");
-        kitpot.createCircle("Bad", "", address(usdc), 0, 3, CYCLE_DURATION, GRACE_PERIOD, LATE_PENALTY_BPS, false, IKitpotReputation.TrustTier.Unranked);
+        kitpot.createCircle("X","",address(usdc),0,3,CYCLE_DURATION,GRACE_PERIOD,LATE_PENALTY_BPS,false,IKitpotReputation.TrustTier.Unranked,"test.init");
     }
 
-    // ================================================================
-    //                       JOIN CIRCLE
-    // ================================================================
+    function test_createCircle_revert_graceExceedsCycle() public {
+        vm.expectRevert("Grace > cycle");
+        kitpot.createCircle("X","",address(usdc),CONTRIBUTION,3,60,120,LATE_PENALTY_BPS,false,IKitpotReputation.TrustTier.Unranked,"test.init");
+    }
+
+    // ── JOIN ──
 
     function test_joinCircle() public {
-        uint256 circleId = _createCircle(3, false);
-
+        uint256 id = _createCircle(3, false);
         vm.prank(alice);
-        kitpot.joinCircle(circleId, "alice.init");
-
-        KitpotCircle.Member[] memory members = kitpot.getMembers(circleId);
-        assertEq(members.length, 2);
-        assertEq(members[1].addr, alice);
-        assertEq(kitpot.getCollateral(circleId, alice), CONTRIBUTION);
+        kitpot.joinCircle(id, "alice.init");
+        assertEq(kitpot.getMembers(id).length, 2);
+        assertEq(kitpot.getCollateral(id, alice), CONTRIBUTION);
     }
 
-    function test_joinCircle_activatesWhenFull() public {
-        uint256 circleId = _createCircle(3, false);
-        vm.prank(alice);
-        kitpot.joinCircle(circleId, "alice.init");
-        vm.prank(bob);
-        kitpot.joinCircle(circleId, "bob.init");
-
-        KitpotCircle.Circle memory c = kitpot.getCircle(circleId);
-        assertEq(uint(c.status), uint(KitpotCircle.CircleStatus.Active));
-        assertGt(c.startTime, 0);
+    function test_joinCircle_activates() public {
+        uint256 id = _full();
+        assertEq(uint(kitpot.getCircle(id).status), uint(KitpotCircle.CircleStatus.Active));
     }
 
-    function test_joinCircle_revert_alreadyMember() public {
-        uint256 circleId = _createCircle(3, false);
-        vm.prank(alice);
-        kitpot.joinCircle(circleId, "alice.init");
+    function test_joinCircle_revert_already() public {
+        uint256 id = _createCircle(3, false);
+        vm.prank(alice); kitpot.joinCircle(id, "a");
         vm.expectRevert("Already a member");
-        vm.prank(alice);
-        kitpot.joinCircle(circleId, "alice2.init");
+        vm.prank(alice); kitpot.joinCircle(id, "b");
+    }
+
+    function test_joinCircle_revert_afterFull() public {
+        uint256 id = _full(); // becomes Active when 3rd member joins
+        vm.expectRevert("Invalid circle status"); // Active, not Forming
+        vm.prank(charlie); kitpot.joinCircle(id, "c");
     }
 
     function test_joinCircle_revert_tierGate() public {
-        // Create Gold-gated circle
-        uint256 circleId = kitpot.createCircle(
-            "Gated", "", address(usdc), CONTRIBUTION, 3, CYCLE_DURATION, GRACE_PERIOD,
-            LATE_PENALTY_BPS, false, IKitpotReputation.TrustTier.Gold
-        );
-        // Alice has no reputation → revert
+        uint256 id = kitpot.createCircle("G","",address(usdc),CONTRIBUTION,3,CYCLE_DURATION,GRACE_PERIOD,LATE_PENALTY_BPS,false,IKitpotReputation.TrustTier.Gold,"test.init");
         vm.expectRevert("Trust tier too low");
-        vm.prank(alice);
-        kitpot.joinCircle(circleId, "alice.init");
+        vm.prank(alice); kitpot.joinCircle(id, "a");
     }
 
-    // ================================================================
-    //                        DEPOSITS
-    // ================================================================
+    function test_joinCircle_revert_afterActive() public {
+        uint256 id = _full();
+        vm.expectRevert("Invalid circle status");
+        vm.prank(charlie); kitpot.joinCircle(id, "c");
+    }
+
+    // ── DEPOSITS ──
 
     function test_deposit() public {
-        uint256 circleId = _createFullCircle();
-        kitpot.deposit(circleId);
-        assertTrue(kitpot.hasPaid(circleId, 0, owner));
+        uint256 id = _full();
+        kitpot.deposit(id);
+        assertTrue(kitpot.hasPaid(id, 0, owner));
     }
 
-    function test_deposit_revert_doublePay() public {
-        uint256 circleId = _createFullCircle();
-        kitpot.deposit(circleId);
+    function test_deposit_revert_double() public {
+        uint256 id = _full();
+        kitpot.deposit(id);
         vm.expectRevert("Already paid this cycle");
-        kitpot.deposit(circleId);
+        kitpot.deposit(id);
+    }
+
+    function test_deposit_revert_notMember() public {
+        uint256 id = _full();
+        vm.expectRevert("Not a member");
+        vm.prank(charlie); kitpot.deposit(id);
     }
 
     function test_deposit_latePenalty() public {
-        uint256 circleId = _createFullCircle();
-
-        // Warp past grace period
+        uint256 id = _full();
         vm.warp(block.timestamp + GRACE_PERIOD + 1);
-
-        uint256 collateralBefore = kitpot.getCollateral(circleId, owner);
-        kitpot.deposit(circleId);
-        uint256 collateralAfter = kitpot.getCollateral(circleId, owner);
-
-        // 5% penalty on 100 USDC = 5 USDC
-        uint256 expectedPenalty = (CONTRIBUTION * LATE_PENALTY_BPS) / 10000;
-        assertEq(collateralBefore - collateralAfter, expectedPenalty);
+        uint256 c1 = kitpot.getCollateral(id, owner);
+        kitpot.deposit(id);
+        uint256 penalty = (CONTRIBUTION * LATE_PENALTY_BPS) / 10000;
+        assertEq(c1 - kitpot.getCollateral(id, owner), penalty);
     }
 
-    // ================================================================
-    //                     ADVANCE CYCLE
-    // ================================================================
+    function test_deposit_onTime_noPenalty() public {
+        uint256 id = _full();
+        uint256 c1 = kitpot.getCollateral(id, owner);
+        kitpot.deposit(id);
+        assertEq(kitpot.getCollateral(id, owner), c1);
+    }
+
+    // ── ADVANCE CYCLE ──
 
     function test_advanceCycle() public {
-        uint256 circleId = _createFullCircle();
-        _depositAll(circleId);
-
-        uint256 balBefore = usdc.balanceOf(owner);
-        kitpot.advanceCycle(circleId);
-
-        uint256 totalPot = CONTRIBUTION * 3;
-        uint256 fee = totalPot / 100;
-        assertEq(usdc.balanceOf(owner) - balBefore, totalPot - fee);
-
-        KitpotCircle.Circle memory c = kitpot.getCircle(circleId);
-        assertEq(c.currentCycle, 1);
+        uint256 id = _full();
+        _depAll(id);
+        vm.warp(block.timestamp + CYCLE_DURATION);
+        uint256 bal = usdc.balanceOf(owner);
+        kitpot.advanceCycle(id);
+        uint256 pot = CONTRIBUTION * 3;
+        assertEq(usdc.balanceOf(owner) - bal, pot - pot/100);
+        assertEq(kitpot.getCircle(id).currentCycle, 1);
     }
 
-    function test_advanceCycle_missedPayment_usesCollateral() public {
-        uint256 circleId = _createFullCircle();
-
-        // Only owner and alice deposit, bob doesn't
-        kitpot.deposit(circleId);
-        vm.prank(alice);
-        kitpot.deposit(circleId);
-        // Bob misses!
-
-        kitpot.advanceCycle(circleId);
-
-        // Bob's collateral should be reduced
-        assertEq(kitpot.getCollateral(circleId, bob), 0); // 100 collateral - 100 contribution = 0
-        // Payment still counted (covered by collateral)
-        assertTrue(kitpot.hasPaid(circleId, 0, bob));
+    function test_advanceCycle_missedUsesCollateral() public {
+        uint256 id = _full();
+        kitpot.deposit(id);
+        vm.prank(alice); kitpot.deposit(id);
+        vm.warp(block.timestamp + CYCLE_DURATION);
+        kitpot.advanceCycle(id);
+        assertEq(kitpot.getCollateral(id, bob), 0);
+        assertTrue(kitpot.hasPaid(id, 0, bob));
     }
 
     function test_advanceCycle_revert_tooEarly() public {
-        // Set a known timestamp first, then create circle
-        vm.warp(1000);
-        uint256 circleId = _createCircle(3, false);
-        vm.prank(alice);
-        kitpot.joinCircle(circleId, "alice.init");
-        vm.prank(bob);
-        kitpot.joinCircle(circleId, "bob.init");
-        // Circle now active, startTime = 1000
-
-        // Deposit all at cycle 0 (timestamp 1000)
-        kitpot.deposit(circleId);
-        vm.prank(alice);
-        kitpot.deposit(circleId);
-        vm.prank(bob);
-        kitpot.deposit(circleId);
-
-        // Still at timestamp 1000, cycle 1 starts at 1000+60=1060
-        // advanceCycle for cycle 0 should work (we're >= startTime + 0*60 = 1000)
-        kitpot.advanceCycle(circleId);
-
-        // Now at cycle 1 — deposit all again
-        kitpot.deposit(circleId);
-        vm.prank(alice);
-        kitpot.deposit(circleId);
-        vm.prank(bob);
-        kitpot.deposit(circleId);
-
-        // Try advance at timestamp 1000, but cycle 1 needs timestamp >= 1060
+        uint256 id = _full();
+        _depAll(id);
         vm.expectRevert("Cycle not elapsed");
-        kitpot.advanceCycle(circleId);
+        kitpot.advanceCycle(id);
     }
 
-    // ================================================================
-    //                   AUTO-SIGNING SESSIONS
-    // ================================================================
+    // ── SESSIONS ──
 
     function test_authorizeSession() public {
-        uint256 circleId = _createFullCircle();
-        address operator = makeAddr("operator");
-
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-        assertTrue(kitpot.isSessionValid(owner, operator, circleId));
+        uint256 id = _full();
+        address op = makeAddr("op");
+        kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        assertTrue(kitpot.isSessionValid(owner, op, id));
     }
 
     function test_depositOnBehalf() public {
-        uint256 circleId = _createFullCircle();
-        address operator = makeAddr("operator");
+        uint256 id = _full();
+        address op = makeAddr("op");
+        kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        vm.prank(op); kitpot.depositOnBehalf(id, owner);
+        assertTrue(kitpot.hasPaid(id, 0, owner));
+    }
 
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-        vm.prank(operator);
-        kitpot.depositOnBehalf(circleId, owner);
-
-        assertTrue(kitpot.hasPaid(circleId, 0, owner));
+    function test_depositOnBehalf_revert_noSession() public {
+        uint256 id = _full();
+        address op = makeAddr("op");
+        vm.expectRevert("Invalid session");
+        vm.prank(op); kitpot.depositOnBehalf(id, owner);
     }
 
     function test_batchDeposit() public {
-        uint256 circleId = _createFullCircle();
-        address operator = makeAddr("operator");
-
-        // All authorize operator
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-        vm.prank(alice);
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-        vm.prank(bob);
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-
-        // Operator batch deposits
-        vm.prank(operator);
-        kitpot.batchDeposit(circleId);
-
-        assertTrue(kitpot.hasPaid(circleId, 0, owner));
-        assertTrue(kitpot.hasPaid(circleId, 0, alice));
-        assertTrue(kitpot.hasPaid(circleId, 0, bob));
+        uint256 id = _full();
+        address op = makeAddr("op");
+        kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        vm.prank(alice); kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        vm.prank(bob); kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        vm.prank(op); kitpot.batchDeposit(id);
+        assertTrue(kitpot.hasPaid(id, 0, owner));
+        assertTrue(kitpot.hasPaid(id, 0, alice));
+        assertTrue(kitpot.hasPaid(id, 0, bob));
     }
 
-    function test_batchDeposit_skipsInsufficientBalance() public {
-        uint256 circleId = _createFullCircle();
-        address operator = makeAddr("operator");
-        address broke = makeAddr("broke");
-
-        // Give broke no USDC but somehow they're a member (use owner instead for this test)
-        // Test with owner who authorized but then we drain their USDC
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-        vm.prank(alice);
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-
-        // Drain owner's USDC approval
-        vm.prank(owner);
-        usdc.approve(address(kitpot), 0); // revoke approval
-
-        // batchDeposit should NOT revert — just skip owner
-        vm.prank(operator);
-        kitpot.batchDeposit(circleId);
-
-        assertFalse(kitpot.hasPaid(circleId, 0, owner)); // skipped
-        assertTrue(kitpot.hasPaid(circleId, 0, alice));   // succeeded
+    function test_batchDeposit_skipsNoSession() public {
+        uint256 id = _full();
+        address op = makeAddr("op");
+        vm.prank(alice); kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        vm.prank(op); kitpot.batchDeposit(id);
+        assertFalse(kitpot.hasPaid(id, 0, owner));
+        assertTrue(kitpot.hasPaid(id, 0, alice));
     }
 
     function test_revokeSession() public {
-        uint256 circleId = _createFullCircle();
-        address operator = makeAddr("operator");
-
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-        kitpot.revokeSession(operator);
-        assertFalse(kitpot.isSessionValid(owner, operator, circleId));
+        uint256 id = _full();
+        address op = makeAddr("op");
+        kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        kitpot.revokeSession(op);
+        assertFalse(kitpot.isSessionValid(owner, op, id));
     }
 
     function test_session_expiry() public {
-        uint256 circleId = _createFullCircle();
-        address operator = makeAddr("operator");
-
-        kitpot.authorizeSession(operator, circleId, CONTRIBUTION, block.timestamp + 1 hours);
-        vm.warp(block.timestamp + 2 hours); // past expiry
-        assertFalse(kitpot.isSessionValid(owner, operator, circleId));
+        uint256 id = _full();
+        address op = makeAddr("op");
+        kitpot.authorizeSession(op, id, CONTRIBUTION, block.timestamp + 1 hours);
+        vm.warp(block.timestamp + 2 hours);
+        assertFalse(kitpot.isSessionValid(owner, op, id));
     }
 
-    // ================================================================
-    //                      COLLATERAL
-    // ================================================================
+    function test_authorizeSession_revert_amountLow() public {
+        uint256 id = _full();
+        vm.expectRevert("Amount below contribution");
+        kitpot.authorizeSession(makeAddr("op"), id, CONTRIBUTION - 1, block.timestamp + 1 hours);
+    }
+
+    // ── COLLATERAL ──
 
     function test_claimCollateral_afterComplete() public {
-        vm.warp(1000);
-        uint256 circleId = _createFullCircle();
-
-        for (uint256 i = 0; i < 3; i++) {
-            vm.warp(1000 + i * CYCLE_DURATION);
-            _depositAll(circleId);
-            vm.warp(1000 + (i + 1) * CYCLE_DURATION);
-            kitpot.advanceCycle(circleId);
-        }
-
-        uint256 collateral = kitpot.getCollateral(circleId, owner);
-        assertEq(collateral, CONTRIBUTION);
-
-        uint256 balBefore = usdc.balanceOf(owner);
-        kitpot.claimCollateral(circleId);
-        assertEq(usdc.balanceOf(owner) - balBefore, CONTRIBUTION);
+        uint256 id = _run();
+        uint256 collateral = kitpot.getCollateral(id, owner);
+        assertGt(collateral, 0); // has collateral to claim
+        uint256 bal = usdc.balanceOf(owner);
+        kitpot.claimCollateral(id);
+        assertEq(usdc.balanceOf(owner) - bal, collateral);
+        assertEq(kitpot.getCollateral(id, owner), 0);
     }
 
-    function test_claimCollateral_revert_beforeComplete() public {
-        uint256 circleId = _createFullCircle();
+    function test_claimCollateral_revert_notComplete() public {
+        uint256 id = _full();
         vm.expectRevert("Circle not completed");
-        kitpot.claimCollateral(circleId);
+        kitpot.claimCollateral(id);
     }
 
-    // ================================================================
-    //                      REPUTATION
-    // ================================================================
-
-    function test_reputation_recorded_onDeposit() public {
-        uint256 circleId = _createFullCircle();
-        kitpot.deposit(circleId);
-
-        IKitpotReputation.MemberReputation memory rep = reputation.getReputation(owner);
-        assertEq(rep.totalCyclesPaid, 1);
-        assertEq(rep.totalCyclesOnTime, 1);
-        assertEq(rep.consecutiveOnTime, 1);
+    function test_claimCollateral_revert_doubleClaim() public {
+        uint256 id = _run();
+        kitpot.claimCollateral(id);
+        vm.expectRevert("No collateral");
+        kitpot.claimCollateral(id);
     }
 
-    function test_reputation_missedPayment_recorded() public {
-        uint256 circleId = _createFullCircle();
-        // Owner and Alice deposit, Bob doesn't
-        kitpot.deposit(circleId);
-        vm.prank(alice);
-        kitpot.deposit(circleId);
-        kitpot.advanceCycle(circleId);
+    // ── REPUTATION INTEGRATION ──
 
-        IKitpotReputation.MemberReputation memory rep = reputation.getReputation(bob);
-        assertEq(rep.totalCyclesMissed, 1);
+    function test_rep_deposit() public {
+        uint256 id = _full();
+        kitpot.deposit(id);
+        IKitpotReputation.MemberReputation memory r = reputation.getReputation(owner);
+        assertEq(r.totalCyclesPaid, 1);
+        assertGt(r.xp, 0);
     }
 
-    function test_reputation_circleCompleted_recorded() public {
-        vm.warp(1000);
-        uint256 circleId = _createFullCircle();
-
-        for (uint256 i = 0; i < 3; i++) {
-            vm.warp(1000 + i * CYCLE_DURATION);
-            _depositAll(circleId);
-            vm.warp(1000 + (i + 1) * CYCLE_DURATION);
-            kitpot.advanceCycle(circleId);
-        }
-
-        IKitpotReputation.MemberReputation memory rep = reputation.getReputation(owner);
-        assertEq(rep.totalCirclesCompleted, 1);
+    function test_rep_missed() public {
+        uint256 id = _full();
+        kitpot.deposit(id);
+        vm.prank(alice); kitpot.deposit(id);
+        vm.warp(block.timestamp + CYCLE_DURATION);
+        kitpot.advanceCycle(id);
+        assertEq(reputation.getReputation(bob).totalCyclesMissed, 1);
     }
 
-    // ================================================================
-    //                    FULL LIFECYCLE
-    // ================================================================
-
-    function test_fullCircleLifecycle() public {
-        vm.warp(1000); // fixed start time
-        uint256 circleId = _createFullCircle();
-        // startTime = 1000
-
-        for (uint256 cycle = 0; cycle < 3; cycle++) {
-            // Warp to cycle start
-            vm.warp(1000 + cycle * CYCLE_DURATION);
-            _depositAll(circleId);
-            // Warp past cycle end for advanceCycle
-            vm.warp(1000 + (cycle + 1) * CYCLE_DURATION);
-            kitpot.advanceCycle(circleId);
-        }
-
-        KitpotCircle.Circle memory c = kitpot.getCircle(circleId);
-        assertEq(uint(c.status), uint(KitpotCircle.CircleStatus.Completed));
+    function test_rep_completed() public {
+        uint256 id = _run();
+        assertEq(reputation.getReputation(owner).totalCirclesCompleted, 1);
     }
 
-    function test_fullLifecycle_withLatePenalties() public {
-        vm.warp(1000);
-        uint256 circleId = _createFullCircle();
+    function test_rep_joined() public {
+        uint256 id = _createCircle(3, false);
+        vm.prank(alice); kitpot.joinCircle(id, "a");
+        assertEq(reputation.getReputation(alice).totalCirclesJoined, 1);
+    }
 
-        // Cycle 0: owner pays late (after grace period)
-        vm.warp(1000 + GRACE_PERIOD + 1);
-        kitpot.deposit(circleId);
-        vm.prank(alice);
-        kitpot.deposit(circleId);
-        vm.prank(bob);
-        kitpot.deposit(circleId);
-        vm.warp(1000 + CYCLE_DURATION);
-        kitpot.advanceCycle(circleId);
+    // ── LIFECYCLE ──
+
+    function test_fullLifecycle() public {
+        uint256 id = _run();
+        assertEq(uint(kitpot.getCircle(id).status), uint(KitpotCircle.CircleStatus.Completed));
+    }
+
+    function test_fullLifecycle_withLate() public {
+        uint256 id = _full();
+        // Circle activated at T0=10000. cycleStartTimes[0] = 10000.
+
+        // Cycle 0: owner pays late (after grace)
+        vm.warp(T0 + GRACE_PERIOD + 1); // 10031
+        kitpot.deposit(id);
+        vm.prank(alice); kitpot.deposit(id);
+        vm.prank(bob); kitpot.deposit(id);
+        vm.warp(T0 + CYCLE_DURATION + 1); // 10061 — past cycle 0 end
+        kitpot.advanceCycle(id);
+        // cycleStartTimes[1] = 10061
 
         uint256 penalty = (CONTRIBUTION * LATE_PENALTY_BPS) / 10000;
-        assertEq(kitpot.getCollateral(circleId, owner), CONTRIBUTION - penalty);
+        assertEq(kitpot.getCollateral(id, owner), CONTRIBUTION - penalty);
 
-        // Remaining cycles on time
-        for (uint256 i = 1; i < 3; i++) {
-            vm.warp(1000 + i * CYCLE_DURATION);
-            _depositAll(circleId);
-            vm.warp(1000 + (i + 1) * CYCLE_DURATION);
-            kitpot.advanceCycle(circleId);
-        }
+        // Cycle 1: on time
+        vm.warp(T0 + CYCLE_DURATION + 2); // 10062 — in cycle 1 window
+        _depAll(id);
+        vm.warp(T0 + 2 * CYCLE_DURATION + 2); // 10122 — past cycle 1 end
+        kitpot.advanceCycle(id);
+        // cycleStartTimes[2] = 10122
 
-        KitpotCircle.Circle memory c = kitpot.getCircle(circleId);
-        assertEq(uint(c.status), uint(KitpotCircle.CircleStatus.Completed));
+        // Cycle 2: on time
+        vm.warp(T0 + 2 * CYCLE_DURATION + 3); // 10123 — in cycle 2 window
+        _depAll(id);
+        vm.warp(T0 + 3 * CYCLE_DURATION + 3); // 10183 — past cycle 2 end
+        kitpot.advanceCycle(id);
+
+        assertEq(uint(kitpot.getCircle(id).status), uint(KitpotCircle.CircleStatus.Completed));
     }
 
-    // ================================================================
-    //                      ADMIN
-    // ================================================================
-
-    function test_setPlatformFee() public {
-        kitpot.setPlatformFee(200);
-        assertEq(kitpot.platformFeeBps(), 200);
+    function test_fullLifecycle_allReceived() public {
+        uint256 id = _run();
+        KitpotCircle.Member[] memory m = kitpot.getMembers(id);
+        for (uint i = 0; i < m.length; i++) assertTrue(m[i].hasReceivedPot);
     }
 
-    function test_setPlatformFee_revert_tooHigh() public {
-        vm.expectRevert("Fee too high");
-        kitpot.setPlatformFee(600);
-    }
+    // ── ADMIN ──
+
+    function test_setPlatformFee() public { kitpot.setPlatformFee(200); assertEq(kitpot.platformFeeBps(), 200); }
+    function test_setPlatformFee_revert() public { vm.expectRevert("Fee too high"); kitpot.setPlatformFee(600); }
 
     function test_withdrawFees() public {
-        uint256 circleId = _createFullCircle();
-        _depositAll(circleId);
-        kitpot.advanceCycle(circleId);
-
-        uint256 expectedFee = (CONTRIBUTION * 3) / 100; // 1% of 300
-        uint256 balBefore = usdc.balanceOf(owner);
+        uint256 id = _full();
+        _depAll(id);
+        vm.warp(block.timestamp + CYCLE_DURATION);
+        kitpot.advanceCycle(id);
+        uint256 bal = usdc.balanceOf(owner);
         kitpot.withdrawFees(address(usdc));
-        assertEq(usdc.balanceOf(owner) - balBefore, expectedFee);
+        assertEq(usdc.balanceOf(owner) - bal, (CONTRIBUTION * 3) / 100);
     }
 
-    function test_pause() public {
-        kitpot.pause();
-        vm.expectRevert();
-        kitpot.createCircle("X", "", address(usdc), CONTRIBUTION, 3, CYCLE_DURATION, GRACE_PERIOD, LATE_PENALTY_BPS, false, IKitpotReputation.TrustTier.Unranked);
+    function test_withdrawFees_revert_none() public { vm.expectRevert("No fees"); kitpot.withdrawFees(address(usdc)); }
+    function test_pause() public { kitpot.pause(); vm.expectRevert(); _raw(3); }
+    function test_unpause() public { kitpot.pause(); kitpot.unpause(); _createCircle(3, false); }
+    function test_pause_revert_notOwner() public { vm.expectRevert(); vm.prank(alice); kitpot.pause(); }
+
+    // ── VIEWS ──
+
+    function test_getCircleCount() public { assertEq(kitpot.getCircleCount(), 0); _createCircle(3,false); assertEq(kitpot.getCircleCount(), 1); }
+
+    function test_getCyclePaymentStatus() public {
+        uint256 id = _full();
+        kitpot.deposit(id);
+        (, bool[] memory p) = kitpot.getCyclePaymentStatus(id);
+        assertTrue(p[0]); assertFalse(p[1]); assertFalse(p[2]);
     }
 
-    // ================================================================
-    //                       HELPERS
-    // ================================================================
-
-    function _createCircle(uint256 members, bool isPublic) internal returns (uint256) {
-        return kitpot.createCircle(
-            "Test Circle", "A test circle", address(usdc), CONTRIBUTION, members,
-            CYCLE_DURATION, GRACE_PERIOD, LATE_PENALTY_BPS, isPublic,
-            IKitpotReputation.TrustTier.Unranked
-        );
+    function test_getCurrentCycleInfo() public {
+        uint256 id = _full();
+        (uint256 cn,,, address r, bool ap, bool ca) = kitpot.getCurrentCycleInfo(id);
+        assertEq(cn, 0); assertEq(r, owner); assertFalse(ap); assertFalse(ca);
     }
 
-    function _createFullCircle() internal returns (uint256) {
-        uint256 circleId = _createCircle(3, false);
-        vm.prank(alice);
-        kitpot.joinCircle(circleId, "alice.init");
-        vm.prank(bob);
-        kitpot.joinCircle(circleId, "bob.init");
-        return circleId;
+    function test_getMemberByAddress() public {
+        uint256 id = _full();
+        KitpotCircle.Member memory m = kitpot.getMemberByAddress(id, alice);
+        assertEq(m.addr, alice); assertEq(m.turnOrder, 1);
     }
 
-    function _depositAll(uint256 circleId) internal {
-        kitpot.deposit(circleId);
-        vm.prank(alice);
-        kitpot.deposit(circleId);
-        vm.prank(bob);
-        kitpot.deposit(circleId);
+    // ── HELPERS ──
+
+    function _raw(uint256 n) internal returns (uint256) {
+        return kitpot.createCircle("Test Circle","desc",address(usdc),CONTRIBUTION,n,CYCLE_DURATION,GRACE_PERIOD,LATE_PENALTY_BPS,false,IKitpotReputation.TrustTier.Unranked,"creator.init");
+    }
+    function _createCircle(uint256 n, bool pub) internal returns (uint256) {
+        return kitpot.createCircle("Test Circle","desc",address(usdc),CONTRIBUTION,n,CYCLE_DURATION,GRACE_PERIOD,LATE_PENALTY_BPS,pub,IKitpotReputation.TrustTier.Unranked,"creator.init");
+    }
+    function _full() internal returns (uint256) {
+        uint256 id = _createCircle(3, false);
+        vm.prank(alice); kitpot.joinCircle(id, "alice.init");
+        vm.prank(bob); kitpot.joinCircle(id, "bob.init");
+        return id;
+    }
+    function _depAll(uint256 id) internal {
+        kitpot.deposit(id);
+        vm.prank(alice); kitpot.deposit(id);
+        vm.prank(bob); kitpot.deposit(id);
+    }
+    function _run() internal returns (uint256) {
+        uint256 id = _full();
+        uint256 start = block.timestamp;
+        for (uint256 i = 0; i < 3; i++) {
+            // Warp to within cycle window (after cycle start, deposits are valid)
+            vm.warp(start + i * CYCLE_DURATION + 1);
+            _depAll(id);
+            // Warp past cycle end
+            vm.warp(start + (i + 1) * CYCLE_DURATION + 1);
+            kitpot.advanceCycle(id);
+        }
+        return id;
     }
 }

@@ -31,12 +31,12 @@ export function DepositButton({ circleId, circle, userAddress }: DepositButtonPr
   const { isLoading: isApprovingConfirm } = useWaitForTransactionReceipt({ hash: approveHash });
 
   const { writeContract: writeDeposit, data: depositHash, isPending: isDepositing } = useWriteContract();
-  const { isLoading: isDepositingConfirm } = useWaitForTransactionReceipt({ hash: depositHash });
+  const { isLoading: isDepositingConfirm, isSuccess: depositConfirmed } = useWaitForTransactionReceipt({ hash: depositHash });
 
-  if (!userAddress || alreadyPaid) {
+  if (!userAddress || alreadyPaid || depositConfirmed) {
     return (
       <Button disabled size="sm" className="flex-1">
-        {alreadyPaid ? "Already Paid" : "Connect wallet"}
+        {alreadyPaid || depositConfirmed ? "Already Paid" : "Connect wallet"}
       </Button>
     );
   }

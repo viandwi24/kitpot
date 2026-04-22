@@ -46,6 +46,7 @@ export function useCircle(circleId: bigint) {
     abi: KITPOT_ABI,
     functionName: "getCircle",
     args: [circleId],
+    query: { refetchInterval: 3000 },
   });
 }
 
@@ -55,6 +56,7 @@ export function useCircleMembers(circleId: bigint) {
     abi: KITPOT_ABI,
     functionName: "getMembers",
     args: [circleId],
+    query: { refetchInterval: 3000 },
   });
 }
 

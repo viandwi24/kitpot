@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCreateCircle } from "@/hooks/use-create-circle";
+import { useCreateCircle, useUSDCApproval } from "@/hooks/use-create-circle";
+import { parseUnits } from "viem";
+import { CONTRACTS, USDC_DECIMALS } from "@/lib/contracts";
+import { useAccount } from "wagmi";
+import { useInitUsername } from "@/hooks/use-init-username";
+import { truncateAddress } from "@/lib/utils";
 
 const CYCLE_PRESETS = [
   { label: "Demo (60s)", value: 60, grace: 30 },
@@ -24,34 +30,68 @@ const TIER_OPTIONS = [
 
 export function CreateCircleForm() {
   const router = useRouter();
+  const { address } = useAccount();
+  const { name: resolvedName } = useInitUsername(address);
   const { createCircle, isPending, isConfirming, isSuccess, error } = useCreateCircle();
+  const [contributionAmount, setContributionAmount] = useState("100");
+  const collateralNeeded = parseUnits(contributionAmount || "0", USDC_DECIMALS);
+  const {
+    needsApproval,
+    approve,
+    isPending: isApprovePending,
+    isConfirming: isApproveConfirming,
+    isSuccess: isApproveSuccess,
+    refetch: refetchAllowance,
+  } = useUSDCApproval(CONTRACTS.kitpotCircle, collateralNeeded);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [contributionAmount, setContributionAmount] = useState("100");
+  const initUsername = resolvedName ? `${resolvedName}.init` : (address ? truncateAddress(address) : "");
   const [maxMembers, setMaxMembers] = useState(3);
   const [cycleDuration, setCycleDuration] = useState(60);
   const [gracePeriod, setGracePeriod] = useState(30);
   const [isPublic, setIsPublic] = useState(true);
   const [minimumTier, setMinimumTier] = useState(0);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Track whether we need to auto-submit create after approval
+  const autoCreateRef = useRef(false);
+
+  function getParams() {
+    return { name, description, contributionAmount, maxMembers, cycleDuration, gracePeriod, latePenaltyBps: 500, isPublic, minimumTier, initUsername };
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    createCircle({
-      name,
-      description,
-      contributionAmount,
-      maxMembers,
-      cycleDuration,
-      gracePeriod,
-      latePenaltyBps: 500, // 5% default
-      isPublic,
-      minimumTier,
-    });
+    if (needsApproval) {
+      autoCreateRef.current = true;
+      approve();
+    } else {
+      createCircle(getParams());
+    }
   }
 
-  if (isSuccess) {
-    router.push("/circles");
+  // After approval confirms: refetch allowance, then auto-create
+  useEffect(() => {
+    if (!isApproveSuccess) return;
+    refetchAllowance().then(() => {
+      if (autoCreateRef.current) {
+        autoCreateRef.current = false;
+        createCircle(getParams());
+      }
+    });
+  }, [isApproveSuccess]);
+
+  useEffect(() => { if (isSuccess) router.push("/circles"); }, [isSuccess]);
+
+  const isBusy = isApprovePending || isApproveConfirming || isPending || isConfirming;
+
+  function buttonLabel() {
+    if (isApprovePending) return "Waiting for wallet...";
+    if (isApproveConfirming) return "Approving USDC...";
+    if (isPending) return "Waiting for wallet...";
+    if (isConfirming) return "Creating circle...";
+    return "Create Circle";
   }
 
   return (
@@ -134,35 +174,48 @@ export function CreateCircleForm() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Minimum Trust Tier</Label>
-            <div className="flex flex-wrap gap-2">
-              {TIER_OPTIONS.map((opt) => (
-                <Button
-                  key={opt.value}
-                  type="button"
-                  variant={minimumTier === opt.value ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setMinimumTier(opt.value)}
-                >
-                  {opt.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <button
+            type="button"
+            className="flex w-full items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowAdvanced((v) => !v)}
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+            Advanced settings
+          </button>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isPublic}
-              onClick={() => setIsPublic(!isPublic)}
-              className={`relative h-6 w-11 rounded-full transition-colors ${isPublic ? "bg-primary" : "bg-secondary"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${isPublic ? "translate-x-5" : ""}`} />
-            </button>
-            <Label>Public (visible in Discover)</Label>
-          </div>
+          {showAdvanced && (
+            <div className="space-y-4 rounded-xl border border-border/40 bg-secondary/20 p-4">
+              <div className="space-y-2">
+                <Label>Minimum Trust Tier</Label>
+                <div className="flex flex-wrap gap-2">
+                  {TIER_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      variant={minimumTier === opt.value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setMinimumTier(opt.value)}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isPublic}
+                  onClick={() => setIsPublic(!isPublic)}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${isPublic ? "bg-primary" : "bg-secondary"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${isPublic ? "translate-x-5" : ""}`} />
+                </button>
+                <Label>Public (visible in Discover)</Label>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl bg-secondary p-4 text-sm space-y-1">
             <p>
@@ -174,18 +227,21 @@ export function CreateCircleForm() {
             <p className="text-muted-foreground">Platform fee: 1% per pot</p>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">
-              Error: {error.message.slice(0, 100)}
+          {needsApproval && !isBusy && (
+            <p className="text-xs text-muted-foreground text-center">
+              First time: will approve USDC then create circle automatically.
             </p>
           )}
 
-          <Button type="submit" className="w-full" disabled={isPending || isConfirming}>
-            {isPending
-              ? "Waiting for approval..."
-              : isConfirming
-              ? "Confirming..."
-              : "Create Circle"}
+          {error && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <p className="font-medium">Transaction failed</p>
+              <p className="mt-1 text-xs opacity-80">{error.message.slice(0, 200)}</p>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isBusy}>
+            {buttonLabel()}
           </Button>
         </form>
       </CardContent>

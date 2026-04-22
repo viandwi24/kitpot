@@ -14,16 +14,37 @@ import { InviteForm } from "@/components/circle/invite-form";
 import { AutoSigningSetup } from "@/components/circle/auto-signing-setup";
 import { BatchDepositTrigger } from "@/components/circle/batch-deposit-trigger";
 import { BridgeDeposit } from "@/components/bridge/bridge-deposit";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CircleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const circleId = BigInt(id);
   const { address } = useAccount();
-  const { data: circle, isLoading: circleLoading } = useCircle(circleId);
+  const { data: circle, isLoading: circleLoading, isError } = useCircle(circleId);
   const { data: members } = useCircleMembers(circleId);
 
-  if (circleLoading || !circle) {
-    return <p className="py-8 text-center text-muted-foreground">Loading...</p>;
+  if (circleLoading) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
+        <Skeleton className="h-10 w-2/3" />
+        <Skeleton className="h-5 w-1/3" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (isError || !circle) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center px-4">
+        <p className="text-4xl">🔍</p>
+        <h2 className="text-xl font-semibold">Circle not found</h2>
+        <p className="text-muted-foreground">This circle doesn't exist or may have been removed.</p>
+        <Button asChild>
+          <Link href="/circles">Back to My Circles</Link>
+        </Button>
+      </div>
+    );
   }
 
   const memberList = [...(members ?? [])];

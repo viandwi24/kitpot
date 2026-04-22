@@ -8,6 +8,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IKitpotReputation.sol";
 
+interface IKitpotAchievements {
+    enum AchievementType {
+        FirstCircleJoined, FirstPotReceived, CircleCompleted, PerfectCircle,
+        Streak3, Streak10, Streak25, CircleCreator, HighRoller, Veteran, DiamondTier, EarlyAdopter
+    }
+    function award(address member, AchievementType aType, uint256 circleId) external;
+    function has(address member, AchievementType aType) external view returns (bool);
+}
+
 /// @title KitpotCircle — Trustless Rotating Savings Circle (ROSCA) on Initia
 /// @notice Full-featured savings circles with auto-signing, reputation gating,
 ///         collateral, late penalties, and public discovery.
@@ -54,6 +63,7 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         uint256 joinedAt;
         bool hasReceivedPot;
         uint256 turnOrder;
+        uint256 missedPayments;
     }
 
     struct Session {
@@ -90,9 +100,12 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
     uint256 public constant MAX_LATE_PENALTY_BPS = 1000; // max 10%
     mapping(address => uint256) public accumulatedFees;
 
+    // Actual per-cycle start times: circleId => cycleIndex => startTimestamp
+    mapping(uint256 => mapping(uint256 => uint256)) public cycleStartTimes;
+
     // External contracts
     IKitpotReputation public reputation;
-    address public achievements; // KitpotAchievements address
+    IKitpotAchievements public achievements;
 
     // ============================================================
     //                         EVENTS
@@ -159,7 +172,8 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         uint256 gracePeriod,
         uint256 latePenaltyBps,
         bool isPublic,
-        IKitpotReputation.TrustTier minimumTier
+        IKitpotReputation.TrustTier minimumTier,
+        string calldata initUsername
     ) external whenNotPaused returns (uint256 circleId) {
         require(bytes(name).length > 0, "Name required");
         require(tokenAddress != address(0), "Invalid token");
@@ -188,8 +202,18 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         c.status = CircleStatus.Forming;
 
         // Creator joins + deposits collateral
-        _addMember(circleId, msg.sender, "");
+        _addMember(circleId, msg.sender, initUsername);
         _depositCollateral(circleId, msg.sender, tokenAddress, contributionAmount);
+
+        // Award creator achievements
+        if (address(achievements) != address(0)) {
+            if (!achievements.has(msg.sender, IKitpotAchievements.AchievementType.FirstCircleJoined)) {
+                try achievements.award(msg.sender, IKitpotAchievements.AchievementType.FirstCircleJoined, circleId) {} catch {}
+            }
+            if (!achievements.has(msg.sender, IKitpotAchievements.AchievementType.CircleCreator)) {
+                try achievements.award(msg.sender, IKitpotAchievements.AchievementType.CircleCreator, circleId) {} catch {}
+            }
+        }
 
         emit CircleCreated(circleId, msg.sender, name, contributionAmount, maxMembers);
     }
@@ -218,10 +242,16 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         // Record in reputation
         reputation.recordCircleJoined(msg.sender, circleId);
 
+        // Award first join achievement
+        if (address(achievements) != address(0) && !achievements.has(msg.sender, IKitpotAchievements.AchievementType.FirstCircleJoined)) {
+            try achievements.award(msg.sender, IKitpotAchievements.AchievementType.FirstCircleJoined, circleId) {} catch {}
+        }
+
         // Auto-activate when full
         if (c.memberCount == c.maxMembers) {
             c.status = CircleStatus.Active;
             c.startTime = block.timestamp;
+            cycleStartTimes[circleId][0] = block.timestamp;
             emit CircleActivated(circleId, block.timestamp);
         }
     }
@@ -235,7 +265,8 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
             initUsername: initUsername,
             joinedAt: block.timestamp,
             hasReceivedPot: false,
-            turnOrder: turnOrder
+            turnOrder: turnOrder,
+            missedPayments: 0
         }));
 
         isMember[circleId][addr] = true;
@@ -277,7 +308,7 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         Member[] storage members = _circleMembers[circleId];
 
         require(
-            block.timestamp >= c.startTime + (c.currentCycle * c.cycleDuration),
+            block.timestamp >= cycleStartTimes[circleId][c.currentCycle] + c.cycleDuration,
             "Cycle not elapsed"
         );
 
@@ -310,16 +341,35 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         // Record in reputation
         reputation.recordPotReceived(recipient, payout);
 
+        // Award first pot received
+        if (address(achievements) != address(0) && !achievements.has(recipient, IKitpotAchievements.AchievementType.FirstPotReceived)) {
+            try achievements.award(recipient, IKitpotAchievements.AchievementType.FirstPotReceived, circleId) {} catch {}
+        }
+
         emit PotDistributed(circleId, c.currentCycle, recipient, payout, fee);
 
         // Advance
-        c.currentCycle++;
+        uint256 nextCycle = c.currentCycle + 1;
+        if (nextCycle < c.totalCycles) {
+            cycleStartTimes[circleId][nextCycle] = block.timestamp;
+        }
+        c.currentCycle = nextCycle;
 
         if (c.currentCycle >= c.totalCycles) {
             c.status = CircleStatus.Completed;
-            // Record completion for all members
+            // Record completion for all members + award achievements
             for (uint256 i = 0; i < members.length; i++) {
-                reputation.recordCircleCompleted(members[i].addr, circleId);
+                address m = members[i].addr;
+                reputation.recordCircleCompleted(m, circleId);
+                if (address(achievements) != address(0)) {
+                    if (!achievements.has(m, IKitpotAchievements.AchievementType.CircleCompleted)) {
+                        try achievements.award(m, IKitpotAchievements.AchievementType.CircleCompleted, circleId) {} catch {}
+                    }
+                    // Perfect circle: no missed payments
+                    if (members[i].missedPayments == 0 && !achievements.has(m, IKitpotAchievements.AchievementType.PerfectCircle)) {
+                        try achievements.award(m, IKitpotAchievements.AchievementType.PerfectCircle, circleId) {} catch {}
+                    }
+                }
             }
             emit CircleCompleted(circleId);
         } else {
@@ -332,7 +382,7 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         require(!hasPaid[circleId][c.currentCycle][member], "Already paid this cycle");
 
         // Check if late
-        uint256 cycleStart = c.startTime + (c.currentCycle * c.cycleDuration);
+        uint256 cycleStart = cycleStartTimes[circleId][c.currentCycle];
         bool isLate = block.timestamp > (cycleStart + c.gracePeriod);
 
         // Apply late penalty from collateral
@@ -377,8 +427,15 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
             emit MemberDefaulted(circleId, member, collateral);
         }
 
-        // Record missed in reputation
+        // Record missed in reputation + track on member
         reputation.recordMissedPayment(member, circleId, c.currentCycle);
+        Member[] storage mlist = _circleMembers[circleId];
+        for (uint256 i = 0; i < mlist.length; i++) {
+            if (mlist[i].addr == member) {
+                mlist[i].missedPayments++;
+                break;
+            }
+        }
     }
 
     /// @notice Claim collateral after circle completion
@@ -455,7 +512,7 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
                     hasPaid[circleId][c.currentCycle][member] = true;
 
                     // Check if late for reputation
-                    uint256 cycleStart = c.startTime + (c.currentCycle * c.cycleDuration);
+                    uint256 cycleStart = cycleStartTimes[circleId][c.currentCycle];
                     bool isLate = block.timestamp > (cycleStart + c.gracePeriod);
                     if (isLate && c.latePenaltyBps > 0) {
                         uint256 penalty = (c.contributionAmount * c.latePenaltyBps) / 10000;
@@ -535,11 +592,11 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         Circle storage c = _circles[circleId];
         cycleNumber = c.currentCycle;
         if (c.status == CircleStatus.Active) {
-            cycleStartTime = c.startTime + (c.currentCycle * c.cycleDuration);
+            cycleStartTime = cycleStartTimes[circleId][c.currentCycle];
             cycleEndTime = cycleStartTime + c.cycleDuration;
             recipient = _circleMembers[circleId][c.currentCycle].addr;
             allPaid = _allMembersPaid(circleId);
-            canAdvance = block.timestamp >= cycleStartTime;
+            canAdvance = block.timestamp >= cycleEndTime;
         }
     }
 
@@ -571,7 +628,7 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
     }
 
     function setAchievements(address _achievements) external onlyOwner {
-        achievements = _achievements;
+        achievements = IKitpotAchievements(_achievements);
     }
 
     function withdrawFees(address token) external onlyOwner {

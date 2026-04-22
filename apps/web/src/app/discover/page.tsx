@@ -3,6 +3,7 @@
 import { useCircleCount } from "@/hooks/use-circles";
 import { usePublicCircles } from "@/hooks/use-discover";
 import { DiscoverCard } from "@/components/circle/discover-card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DiscoverPage() {
   const { data: totalCircles } = useCircleCount();
@@ -20,7 +21,11 @@ export default function DiscoverPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+          ))}
+        </div>
       ) : publicCircles.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center">
           <p className="text-muted-foreground">No open circles available right now.</p>

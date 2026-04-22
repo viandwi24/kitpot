@@ -38,7 +38,8 @@ contract SetupDemoScript is Script {
             30,                            // 30s grace period
             500,                           // 5% late penalty
             true,                          // public
-            IKitpotReputation.TrustTier.Unranked // no tier gate
+            IKitpotReputation.TrustTier.Unranked, // no tier gate
+            "creator.init"                 // creator username
         );
 
         vm.stopBroadcast();
