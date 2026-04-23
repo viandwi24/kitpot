@@ -1,4 +1,4 @@
-# Local Mac M1/M2 overrides — automatically applied by docker compose on local
+# Local Mac M1/M2 — automatically applied by docker compose
 services:
   kitpot-node:
     build:

@@ -68,12 +68,6 @@ for i in $(seq 1 60); do
     sleep 2
 done
 
-# ── Auto-deploy contracts (optional) ─────────────────────────────────────────
-if [ "${AUTO_DEPLOY:-true}" = "true" ]; then
-    echo "[kitpot] AUTO_DEPLOY=true — running contract deployment..."
-    /deploy-contracts.sh || echo "[kitpot] Contract deployment failed (non-fatal — node continues)"
-fi
-
 # ── Start OPinit bots (optional) ─────────────────────────────────────────────
 if [ "${RUN_OPINIT:-false}" = "true" ]; then
 
