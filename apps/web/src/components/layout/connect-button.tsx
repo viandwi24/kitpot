@@ -6,6 +6,7 @@ import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { truncateAddress } from "@/lib/utils";
 import { useInitUsername } from "@/hooks/use-init-username";
+import { NETWORKS, getSelectedNetwork } from "@/lib/network";
 
 const ONBOARDED_PREFIX = "kitpot_onboarded";
 
@@ -50,7 +51,44 @@ export function useWelcomeModal() {
   return { showWelcome, handleClose };
 }
 
+function useAutoSwitchNetwork() {
+  const { address } = useAccount();
+
+  useEffect(() => {
+    if (!address) return;
+    if (getSelectedNetwork() !== "testnet") return;
+
+    const eth = (window as unknown as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
+    if (!eth) return;
+
+    const { chainId, rpcUrl } = NETWORKS.testnet;
+    const chainIdHex = `0x${chainId.toString(16)}`;
+
+    eth.request({ method: "eth_chainId" }).then((current) => {
+      if (current === chainIdHex) return;
+      eth.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainIdHex }],
+      }).catch((err: { code?: number }) => {
+        if (err?.code === 4902) {
+          eth.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: chainIdHex,
+              chainName: "Kitpot Testnet",
+              nativeCurrency: { name: "INIT", symbol: "INIT", decimals: 18 },
+              rpcUrls: [rpcUrl],
+              blockExplorerUrls: null,
+            }],
+          });
+        }
+      });
+    });
+  }, [address]);
+}
+
 export function ConnectButton() {
+  useAutoSwitchNetwork();
   const { username: kitUsername, isConnected, openConnect, openWallet } = useInterwovenKit();
   const { address: evmAddress } = useAccount();
   const { name: resolvedUsername } = useInitUsername(isConnected ? evmAddress : undefined);

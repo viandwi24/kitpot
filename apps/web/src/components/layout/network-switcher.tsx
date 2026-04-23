@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { NETWORKS } from "@/lib/network";
 import {
   getSelectedNetwork,
   setSelectedNetwork,
@@ -95,33 +94,12 @@ function LocalConfigModal({ onSave, onCancel }: { onSave: (c: LocalConfig) => vo
   return createPortal(content, document.body);
 }
 
-async function addKitpotNetwork() {
-  const { rpcUrl, chainId } = NETWORKS.testnet;
-  const chainIdHex = `0x${chainId.toString(16)}`;
-  try {
-    await (window as unknown as { ethereum: { request: (args: { method: string; params: unknown[] }) => Promise<void> } }).ethereum.request({
-      method: "wallet_addEthereumChain",
-      params: [{
-        chainId: chainIdHex,
-        chainName: "Kitpot Testnet",
-        nativeCurrency: { name: "INIT", symbol: "INIT", decimals: 18 },
-        rpcUrls: [rpcUrl],
-        blockExplorerUrls: null,
-      }],
-    });
-  } catch {
-    // user rejected or already added
-  }
-}
 
 export function NetworkSwitcher() {
   const [current, setCurrent] = useState<NetworkKey>("testnet");
   const [showModal, setShowModal] = useState(false);
-  const [hasInjected, setHasInjected] = useState(false);
-
   useEffect(() => {
     setCurrent(getSelectedNetwork());
-    setHasInjected(typeof window !== "undefined" && !!(window as unknown as { ethereum?: unknown }).ethereum);
   }, []);
 
   function handleSwitch(key: NetworkKey) {
@@ -172,15 +150,6 @@ export function NetworkSwitcher() {
         >
           Testnet
         </button>
-        {current === "testnet" && hasInjected && (
-          <button
-            onClick={addKitpotNetwork}
-            className="rounded-full px-2 py-1 text-muted-foreground hover:text-foreground transition-colors"
-            title="Add Kitpot Testnet to wallet"
-          >
-            +
-          </button>
-        )}
       </div>
 
       {showModal && (
