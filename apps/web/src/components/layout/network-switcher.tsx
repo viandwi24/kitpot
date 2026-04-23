@@ -47,13 +47,13 @@ function LocalConfigModal({ onSave, onCancel }: { onSave: (c: LocalConfig) => vo
 
         <div className="space-y-3">
           {[
-            { label: "RPC URL", value: rpcUrl, onChange: setRpcUrl, placeholder: "http://localhost:8545" },
-            { label: "Chain ID", value: chainId, onChange: setChainId, placeholder: "31337" },
-            { label: "KitpotCircle", value: circle, onChange: setCircle, placeholder: "0x..." },
-            { label: "MockUSDC", value: usdc, onChange: setUsdc, placeholder: "0x..." },
-            { label: "Reputation", value: rep, onChange: setRep, placeholder: "0x..." },
-            { label: "Achievements", value: ach, onChange: setAch, placeholder: "0x..." },
-          ].map(({ label, value, onChange, placeholder }) => (
+            { label: "RPC URL", value: rpcUrl, onChange: (v: string) => setRpcUrl(v), placeholder: "http://localhost:8545" },
+            { label: "Chain ID", value: chainId, onChange: (v: string) => setChainId(v), placeholder: "31337" },
+            { label: "KitpotCircle", value: circle, onChange: (v: string) => setCircle(v as `0x${string}`), placeholder: "0x..." },
+            { label: "MockUSDC", value: usdc, onChange: (v: string) => setUsdc(v as `0x${string}`), placeholder: "0x..." },
+            { label: "Reputation", value: rep, onChange: (v: string) => setRep(v as `0x${string}`), placeholder: "0x..." },
+            { label: "Achievements", value: ach, onChange: (v: string) => setAch(v as `0x${string}`), placeholder: "0x..." },
+          ].map(({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder: string }) => (
             <div key={label}>
               <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
               <input

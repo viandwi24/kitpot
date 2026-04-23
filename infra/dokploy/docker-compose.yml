@@ -1,0 +1,19 @@
+services:
+  kitpot-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ~/.minitia:/data/.minitia
+      - opinit-data:/data/.opinit
+    ports:
+      - "8545:8545"
+      - "8546:8546"
+      - "26657:26657"
+      - "1317:1317"
+    restart: unless-stopped
+
+volumes:
+  opinit-data:
