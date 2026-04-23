@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
+import { injected } from "wagmi/connectors";
 import { defineChain } from "viem";
 import {
   InterwovenKitProvider,
@@ -24,7 +25,7 @@ const kitpotChain = defineChain({
 
 const wagmiConfig = createConfig({
   chains: [kitpotChain],
-  connectors: [initiaPrivyWalletConnector],
+  connectors: [initiaPrivyWalletConnector, injected()],
   transports: {
     [kitpotChain.id]: http(),
   },

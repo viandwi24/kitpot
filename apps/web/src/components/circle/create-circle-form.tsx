@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -32,17 +32,10 @@ export function CreateCircleForm() {
   const router = useRouter();
   const { address } = useAccount();
   const { name: resolvedName } = useInitUsername(address);
-  const { createCircle, isPending, isConfirming, isSuccess, error } = useCreateCircle();
+  const { createCircleAsync, isPending, isConfirming, isSuccess, error } = useCreateCircle();
   const [contributionAmount, setContributionAmount] = useState("100");
   const collateralNeeded = parseUnits(contributionAmount || "0", USDC_DECIMALS);
-  const {
-    needsApproval,
-    approve,
-    isPending: isApprovePending,
-    isConfirming: isApproveConfirming,
-    isSuccess: isApproveSuccess,
-    refetch: refetchAllowance,
-  } = useUSDCApproval(CONTRACTS.kitpotCircle, collateralNeeded);
+  const { needsApproval, approveAsync, refetch: refetchAllowance } = useUSDCApproval(CONTRACTS.kitpotCircle, collateralNeeded);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -54,43 +47,39 @@ export function CreateCircleForm() {
   const [minimumTier, setMinimumTier] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Track whether we need to auto-submit create after approval
-  const autoCreateRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function getParams() {
     return { name, description, contributionAmount, maxMembers, cycleDuration, gracePeriod, latePenaltyBps: 500, isPublic, minimumTier, initUsername };
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (needsApproval) {
-      autoCreateRef.current = true;
-      approve();
-    } else {
-      createCircle(getParams());
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (needsApproval) {
+        await approveAsync();
+        await refetchAllowance();
+      }
+      await createCircleAsync(getParams());
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Transaction failed");
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  // After approval confirms: refetch allowance, then auto-create
-  useEffect(() => {
-    if (!isApproveSuccess) return;
-    refetchAllowance().then(() => {
-      if (autoCreateRef.current) {
-        autoCreateRef.current = false;
-        createCircle(getParams());
-      }
-    });
-  }, [isApproveSuccess]);
-
   useEffect(() => { if (isSuccess) router.push("/circles"); }, [isSuccess]);
 
-  const isBusy = isApprovePending || isApproveConfirming || isPending || isConfirming;
+  const isBusy = submitting || isPending || isConfirming;
 
   function buttonLabel() {
-    if (isApprovePending) return "Waiting for wallet...";
-    if (isApproveConfirming) return "Approving USDC...";
     if (isPending) return "Waiting for wallet...";
     if (isConfirming) return "Creating circle...";
+    if (submitting) return needsApproval ? "Approving USDC..." : "Creating circle...";
+    if (needsApproval) return "Approve USDC & Create";
     return "Create Circle";
   }
 
@@ -229,14 +218,14 @@ export function CreateCircleForm() {
 
           {needsApproval && !isBusy && (
             <p className="text-xs text-muted-foreground text-center">
-              First time: will approve USDC then create circle automatically.
+              First time: will ask you to approve USDC, then create circle in one flow.
             </p>
           )}
 
-          {error && (
+          {(error || submitError) && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               <p className="font-medium">Transaction failed</p>
-              <p className="mt-1 text-xs opacity-80">{error.message.slice(0, 200)}</p>
+              <p className="mt-1 text-xs opacity-80">{(error?.message || submitError || "").slice(0, 200)}</p>
             </div>
           )}
 

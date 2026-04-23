@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from "wagmi";
 import { parseUnits, maxUint256 } from "viem";
 import { KITPOT_ABI } from "@/lib/abi/KitpotCircle";
@@ -29,11 +30,10 @@ export function useUSDCApproval(spender: `0x${string}`, amount: bigint) {
     query: { enabled: !!address },
   });
 
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { writeContractAsync } = useWriteContract();
 
-  function approve() {
-    writeContract({
+  async function approveAsync() {
+    return writeContractAsync({
       address: CONTRACTS.mockUSDC,
       abi: MOCK_USDC_ABI,
       functionName: "approve",
@@ -43,15 +43,16 @@ export function useUSDCApproval(spender: `0x${string}`, amount: bigint) {
 
   const needsApproval = allowance !== undefined && allowance < amount;
 
-  return { needsApproval, approve, isPending, isConfirming, isSuccess, error, refetch };
+  return { needsApproval, approveAsync, refetch };
 }
 
 export function useCreateCircle() {
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { writeContractAsync, isPending, error } = useWriteContract();
+  const [hash, setHash] = useState<`0x${string}` | undefined>();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  function createCircle(params: CreateCircleParams) {
-    writeContract({
+  async function createCircleAsync(params: CreateCircleParams) {
+    const txHash = await writeContractAsync({
       address: CONTRACTS.kitpotCircle,
       abi: KITPOT_ABI,
       functionName: "createCircle",
@@ -69,9 +70,11 @@ export function useCreateCircle() {
         params.initUsername,
       ],
     });
+    setHash(txHash);
+    return txHash;
   }
 
-  return { createCircle, hash, isPending, isConfirming, isSuccess, error };
+  return { createCircleAsync, hash, isPending, isConfirming, isSuccess, error };
 }
 
 export function useJoinCircle() {

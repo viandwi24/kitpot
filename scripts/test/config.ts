@@ -1,8 +1,23 @@
-import { createPublicClient, createWalletClient, http } from "viem";
+import { createPublicClient, createWalletClient, http, defineChain } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
 
-export const RPC = "http://localhost:8545";
+// Set NETWORK=testnet to run against VPS rollup, otherwise uses local Anvil.
+const NETWORK = process.env.NETWORK ?? "local";
+
+const TESTNET_RPC = process.env.TESTNET_RPC_URL ?? "https://kitpot-rpc.viandwi24.com/";
+const LOCAL_RPC = "http://localhost:8545";
+
+export const RPC = NETWORK === "testnet" ? TESTNET_RPC : LOCAL_RPC;
+
+const kitpotTestnet = defineChain({
+  id: 64146729809684,
+  name: "Kitpot Testnet",
+  nativeCurrency: { name: "INIT", symbol: "INIT", decimals: 18 },
+  rpcUrls: { default: { http: [TESTNET_RPC] } },
+});
+
+export const CHAIN = NETWORK === "testnet" ? kitpotTestnet : foundry;
 
 // Test account keys — loaded from environment variables.
 // Set these before running test scripts:
@@ -33,13 +48,13 @@ export function getAccount(index: number) {
 }
 
 export function getPublicClient() {
-  return createPublicClient({ chain: foundry, transport: http(RPC) });
+  return createPublicClient({ chain: CHAIN, transport: http(RPC) });
 }
 
 export function getWalletClient(accountIndex: number) {
   return createWalletClient({
     account: getAccount(accountIndex),
-    chain: foundry,
+    chain: CHAIN,
     transport: http(RPC),
   });
 }
@@ -50,6 +65,14 @@ export function loadDeployed(): {
   KitpotAchievements: `0x${string}`;
   KitpotCircle: `0x${string}`;
 } {
+  if (NETWORK === "testnet") {
+    return {
+      MockUSDC:           "0xE6353667eb88884374e89b98Cc69daee59752309",
+      KitpotReputation:   "0xE2216861FBa926b09D5bFA96C2AACe34F6a7CC46",
+      KitpotAchievements: "0xc0f72f9fD514E86Ab19a77993E1f35f94D19A5Fc",
+      KitpotCircle:       "0x18c83c7b9f2AFBb22bB42d1BB58aaA6332D590Da",
+    };
+  }
   try {
     return require("./.deployed.json");
   } catch {
