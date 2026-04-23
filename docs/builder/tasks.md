@@ -2,59 +2,66 @@
 
 ---
 
-## Backlog
+## Backlog (remaining before submission deadline: 2026-04-26)
 
-### Day 1 — Environment + Rollup (target: 2026-04-20)
-- [ ] Install `weave` CLI and init rollup `kitpot-1` (EVM)
-- [ ] Init Bun monorepo (root package.json with workspaces)
-- [ ] Init Foundry project (`contracts/`)
-- [ ] Install OpenZeppelin v5
-- [ ] Create skeleton `KitpotCircle.sol` (state variables, `cycleDuration` param)
-- [ ] Deploy hello-world contract to kitpot-1 testnet
+### Critical path
+- [ ] Deploy Docker container to VPS via Dokploy (amd64, `RUN_OPINIT=false` for demo)
+- [ ] rsync `~/.minitia` from Mac to VPS
+- [ ] Configure Traefik domain → port 8545 (public RPC)
+- [ ] Update Vercel env vars: `NEXT_PUBLIC_TESTNET_RPC_URL`, `NEXT_PUBLIC_DEFAULT_NETWORK=testnet`
+- [ ] Redeploy Vercel after env update
+- [ ] Verify live: `curl https://rpc.domain/` returns block number
+- [ ] Record demo video (3 min, narasi audio) — upload to YouTube
+- [ ] Update `video_url` in `.initia/submission.json`
+- [ ] Write DoraHacks submission description (target 8k+ chars)
+- [ ] Submit at dorahacks.io/hackathon/initiate before 2026-04-26
 
-### Day 2 — Core Contract Logic (target: 2026-04-21)
-- [ ] `createCircle()` — name, amount, slots, cycleDuration
-- [ ] `joinCircle()` — max slots enforcement
-- [ ] `deposit()` — iuran collection per cycle
-- [ ] `distributePot()` — round-robin pot distribution
-- [ ] Foundry tests for all core functions
-- [ ] Deploy to kitpot-1 testnet
-
-### Day 3 — Auto-Signing Integration (target: 2026-04-22)
-- [ ] Study Drip's auto-signing pattern (GhostRegistry.sol)
-- [ ] Implement session authorization in contract
-- [ ] Test auto-signing flow with 2 wallets locally
-- [ ] `.init` username resolution
-
-### Day 4 — Frontend Core (target: 2026-04-23)
-- [ ] Init Next.js 16 app (`apps/web/`)
-- [ ] Setup InterwovenKit + Privy providers
-- [ ] Social login (Google/email/Apple)
-- [ ] Create circle form + submit to contract
-- [ ] Invite via `.init` username UI
-
-### Day 5 — Dashboard + Auto-Signing UI + Bridge (target: 2026-04-24)
-- [ ] Circle dashboard (members, payment status, turn order, history)
-- [ ] Auto-signing setup UI (one-time approve)
-- [ ] Interwoven Bridge UI (deposit from Initia hub to kitpot-1) — nice-to-have
-- [ ] Deploy to Vercel staging
-
-### Day 6 — Demo Prep (target: 2026-04-25)
-- [ ] Setup 5 test wallets with faucet funds
-- [ ] Configure `cycleDuration = 60s` for demo
-- [ ] Dry-run demo flow 3x
-- [ ] Record 3-min demo video
-- [ ] Upload to YouTube
-
-### Day 7 — Submission (target: 2026-04-26) DEADLINE
-- [ ] Write README.md
-- [ ] Create `.initia/submission.json`
-- [ ] Write DoraHacks description (target >= 8k chars)
-- [ ] Final Vercel production deploy
-- [ ] Submit on dorahacks.io/hackathon/initiate
+### Nice-to-have (only if time permits)
+- [ ] Verify auto-signing actually works end-to-end on kitpot-2 testnet
+- [ ] Setup 5 test wallets with minted MockUSDC for demo
 
 ---
 
 ## Done
 
-- [x] Setup automated docs infrastructure (CLAUDE.md, docs/builder/, .claude/commands/) — 2026-04-20
+### Infra (2026-04-23)
+- [x] Create `infra/dokploy/Dockerfile` — single image, minitiad + opinitd, arm64+amd64
+- [x] Create `infra/dokploy/entrypoint.sh` — start minitiad, wait for RPC, optional OPinit bots
+- [x] Create `infra/dokploy/docker-compose.yml` — local Mac M1 testing
+- [x] Create `infra/dokploy/.env.example` — all env vars documented
+- [x] Test Docker locally: minitiad producing blocks, OPinit bots running
+
+### Frontend polish (2026-04-23)
+- [x] Fix TypeScript build error in `network-switcher.tsx`
+- [x] Rename "Bridge" → "Faucet" in navbar
+- [x] Replace broken bridge page (alert popup) with clean faucet-only page
+
+### Submission assets (2026-04-23)
+- [x] Write `README.md` (technical, comprehensive)
+- [x] Write `README_DORAHACK.md` (submission-ready)
+- [x] Populate `.initia/submission.json` with deployed contract addresses
+
+### Features — Gamification (2026-04-22–23)
+- [x] `KitpotReputation.sol` — XP, streaks, trust tiers (Bronze/Silver/Gold/Diamond)
+- [x] `KitpotAchievements.sol` — Soulbound NFT badges
+- [x] Frontend: leaderboard page
+- [x] Frontend: achievements/badges page
+- [x] Frontend: user profile page (`/u/[address]`)
+- [x] Frontend: level badge + streak flame in navbar
+
+### Features — Core (2026-04-20–22)
+- [x] `KitpotCircle.sol` — create, join, deposit, distribute, auto-signing sessions, platform fee
+- [x] `MockUSDC.sol` — testnet ERC20, anyone can mint
+- [x] `SetupDemo.s.sol` — demo setup script
+- [x] Comprehensive Foundry tests (30+ tests)
+- [x] Frontend: create circle form
+- [x] Frontend: join circle page
+- [x] Frontend: circle dashboard (cycle status, turn order, payment status)
+- [x] Frontend: public circle discovery
+- [x] Frontend: auto-signing setup UI
+- [x] Frontend: .init username invite
+- [x] Frontend: testnet faucet (mint MockUSDC)
+- [x] Deploy all contracts to kitpot-2 testnet
+
+### Infrastructure (2026-04-20)
+- [x] Setup automated docs infrastructure (CLAUDE.md, docs/builder/)

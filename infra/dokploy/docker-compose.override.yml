@@ -1,0 +1,7 @@
+# Local Mac M1/M2 overrides — automatically applied by docker compose on local
+services:
+  kitpot-node:
+    build:
+      args:
+        TARGETARCH: arm64
+    platform: linux/arm64

@@ -4,18 +4,33 @@
 
 ---
 
-## ADR-001 — Solidity + Foundry over Move for smart contracts
+## ADR-004 — Bridge UI removed, replaced with Faucet
 
-**Context:** Initia docs recommend Move for Gaming & Consumer track. We need to choose contract language for Kitpot.
+**Date:** 2026-04-23
 
-**Decision:** Use Solidity 0.8.26 + Foundry + OpenZeppelin v5.
+**Context:** The `/bridge` page had two sections: (1) "Interwoven Bridge" button that called `alert()` — a TODO placeholder, broken; (2) Testnet Faucet that mints MockUSDC — working. Neither Drip nor Leticia (both serious hackathon submissions) have bridge UI. Bridge requires OPinit bots running on VPS plus real token flow from L1 — too complex to reliably demo.
+
+**Decision:** Remove the broken bridge card entirely. Rename the page and navbar item to "Faucet". Keep only the mint MockUSDC functionality.
 
 **Consequences:**
-- Faster execution — team is familiar with Solidity, no Move learning curve
-- Drip (auto-signing reference) is Solidity — can copy patterns directly
-- Leticia, Hex Vault, Gam3Hub in the same hackathon use EVM + Gaming track — validates this is acceptable
-- 30% Technical+Initia scoring can be fulfilled via InterwovenKit + rollup deploy, not contract language
-- Trade-off: may miss bonus points if judges strongly prefer Move
+- No broken button visible to judges
+- Judges can get test tokens easily (friction-free demo)
+- Interwoven Bridge is no longer listed as a feature — honest
+- Does not hurt scoring: Drip and Leticia win without bridge; scoring favors working demo over broken feature UI
+- If OPinit is confirmed running on VPS in future, can add `openBridge()` back (one line from InterwovenKit)
+
+---
+
+## ADR-003 — Bun monorepo with contracts outside workspaces
+
+**Context:** Need to structure monorepo with both Next.js frontend and Foundry contracts.
+
+**Decision:** Bun workspaces for `apps/*` only. `contracts/` sits at root but is NOT a Bun workspace — it uses Foundry's own toolchain (forge, anvil).
+
+**Consequences:**
+- Clean separation: `bun dev` for frontend, `forge test` for contracts
+- No risk of Bun trying to manage Solidity dependencies
+- `contracts/lib/` (Foundry's dependency folder) won't conflict with node_modules
 
 ---
 
@@ -33,13 +48,15 @@
 
 ---
 
-## ADR-003 — Bun monorepo with contracts outside workspaces
+## ADR-001 — Solidity + Foundry over Move for smart contracts
 
-**Context:** Need to structure monorepo with both Next.js frontend and Foundry contracts.
+**Context:** Initia docs recommend Move for Gaming & Consumer track. We need to choose contract language for Kitpot.
 
-**Decision:** Bun workspaces for `apps/*` only. `contracts/` sits at root but is NOT a Bun workspace — it uses Foundry's own toolchain (forge, anvil).
+**Decision:** Use Solidity 0.8.26 + Foundry + OpenZeppelin v5.
 
 **Consequences:**
-- Clean separation: `bun dev` for frontend, `forge test` for contracts
-- No risk of Bun trying to manage Solidity dependencies
-- `contracts/lib/` (Foundry's dependency folder) won't conflict with node_modules
+- Faster execution — team is familiar with Solidity, no Move learning curve
+- Drip (auto-signing reference) is Solidity — can copy patterns directly
+- Leticia, Hex Vault, Gam3Hub in the same hackathon use EVM + Gaming track — validates this is acceptable
+- 30% Technical+Initia scoring can be fulfilled via InterwovenKit + rollup deploy, not contract language
+- Trade-off: may miss bonus points if judges strongly prefer Move

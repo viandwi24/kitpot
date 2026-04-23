@@ -4,13 +4,26 @@ import { foundry } from "viem/chains";
 
 export const RPC = "http://localhost:8545";
 
-// Anvil default accounts
+// Test account keys — loaded from environment variables.
+// Set these before running test scripts:
+//   export ACCOUNT_0=<key>  (Creator / deployer)
+//   export ACCOUNT_1=<key>  (Alice)
+//   export ACCOUNT_2=<key>  (Bob)
+//   export ACCOUNT_3=<key>  (Charlie)
+//   export ACCOUNT_4=<key>  (Dave)
+// For local Anvil: copy keys from `anvil` startup output.
+function requireEnv(name: string): `0x${string}` {
+  const val = process.env[name];
+  if (!val) throw new Error(`${name} env var not set. See scripts/test/config.ts for setup instructions.`);
+  return val as `0x${string}`;
+}
+
 export const ACCOUNTS = [
-  { name: "Creator", key: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as const },
-  { name: "Alice",   key: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as const },
-  { name: "Bob",     key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a" as const },
-  { name: "Charlie", key: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6" as const },
-  { name: "Dave",    key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a" as const },
+  { name: "Creator", key: requireEnv("ACCOUNT_0") },
+  { name: "Alice",   key: requireEnv("ACCOUNT_1") },
+  { name: "Bob",     key: requireEnv("ACCOUNT_2") },
+  { name: "Charlie", key: requireEnv("ACCOUNT_3") },
+  { name: "Dave",    key: requireEnv("ACCOUNT_4") },
 ] as const;
 
 export function getAccount(index: number) {

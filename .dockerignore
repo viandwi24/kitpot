@@ -1,0 +1,11 @@
+node_modules
+apps
+.next
+.vercel
+docs
+assets
+scripts
+testwallet
+*.log
+.git
+contracts/lib/forge-std/.git

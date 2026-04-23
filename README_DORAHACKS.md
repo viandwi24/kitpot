@@ -40,7 +40,7 @@ Create → Join → Approve once → Contributions run automatically → Pot dis
 
 ## Why This Only Works on Initia
 
-Kitpot is not a generic DeFi app dressed up as a consumer product. Every core feature depends on something Initia-native that doesn't exist elsewhere with the same UX.
+Kitpot is not a generic DeFi app dressed up as a consumer product. The core features depend on Initia-native primitives that don't exist elsewhere with the same UX.
 
 ### 1. Auto-Signing Sessions ⭐
 
@@ -63,19 +63,13 @@ Real people don't invite friends with hex addresses.
 
 Kitpot resolves `.init` names from the Initia REST API in real time — in the member list, in the leaderboard, in the connect button. It makes the app feel like a social product, not a blockchain product.
 
-### 3. Interwoven Bridge ⭐
-
-Users deposit USDC from the Initia hub into the kitpot-2 rollup in one click via the InterwovenKit bridge modal. They never need to know two chains are involved.
-
-The bridge page is integrated directly into the app. "Top up your circle balance" — that's all the user sees.
-
-### 4. Social Login via InterwovenKit + Privy
+### 3. Social Login via Privy + InterwovenKit
 
 Google, Apple, email, X — connect without a wallet extension.
 
 This is the onboarding gate. For diaspora communities unfamiliar with crypto: if they have to install MetaMask before they can join their friend's savings circle, they won't. With social login, the barrier disappears.
 
-### 5. Dedicated Rollup (kitpot-2)
+### 4. Dedicated Rollup (kitpot-2)
 
 All circle state lives on `kitpot-2` — an EVM rollup on Initia testnet (chain ID: `64146729809684`, Bridge ID: `1883`). 
 
@@ -148,7 +142,7 @@ Creators can gate their circles by minimum tier. Diamond-tier members have prove
 
 **Discover** — browse public circles, filter by contribution amount and tier requirement
 
-**Bridge** — USDC balance, mint test USDC (devnet), Interwoven Bridge deposit
+**Faucet** — USDC balance, mint test USDC for testnet use
 
 **Leaderboard** — ranked by XP with `.init` usernames, tier badges, streak flames
 
@@ -211,7 +205,7 @@ Would Kitpot work the same on Ethereum or Solana?
 | Monthly payments | Manual wallet popup every cycle | Auto-signing: approve once, pay forever |
 | User identity | `0x...` hex address | `name.init` username |
 | Onboarding | MetaMask required | Google login |
-| Cross-chain top-up | Bridge app, 5+ steps | One button in the app |
+| Token onboarding | Complex bridge flow | Testnet faucet — mint USDC in one click |
 | Circle state | Multi-sig or custodial | Trustless on dedicated rollup |
 
 Every improvement is Initia-native. None of them are cosmetic.
@@ -223,12 +217,13 @@ Every improvement is Initia-native. None of them are cosmetic.
 ```bash
 git clone <repo> && cd kitpot
 bun install
-anvil &   # local testnet
-cd contracts && PRIVATE_KEY=0xac0974... forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
-bun dev   # open http://localhost:3000, select "Local" network
+anvil &                  # start local chain
+export PRIVATE_KEY=<anvil-test-key>   # copy from anvil startup output
+bun run deploy:local     # deploys contracts + updates .env.local
+bun dev                  # open http://localhost:3000, select "Local" network
 ```
 
-For Initia testnet: switch to "Testnet" in the network switcher. Contracts are already deployed on kitpot-2.
+For Initia testnet: switch to "Testnet" in the network switcher. Contracts are already deployed on kitpot-2 — no redeploy needed.
 
 ---
 

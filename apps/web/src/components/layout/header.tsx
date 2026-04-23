@@ -23,7 +23,7 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { href: "/discover", label: "Discover" },
   { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/bridge", label: "Bridge" },
+  { href: "/bridge", label: "Faucet" },
   { href: "/dashboard", label: "My Dashboard", authOnly: true },
   { href: "/circles", label: "My Circles", authOnly: true },
   { href: "/achievements", label: "Badges", authOnly: true },
@@ -109,9 +109,9 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
           <NavbarXP />
           <div className="flex items-center gap-2">
             <NetworkSwitcher />
-            <ThemeToggle />
           </div>
           <ConnectButton />
+          <ThemeToggle />
         </div>
       </div>
     </>
@@ -163,8 +163,8 @@ export function Header() {
           <div className="ml-auto hidden items-center gap-3 lg:flex">
             <NavbarXP />
             <NetworkSwitcher />
-            <ThemeToggle />
             <ConnectButton />
+            <ThemeToggle />
           </div>
 
           {/* Mobile right side */}

@@ -14,16 +14,15 @@
 
 ### Why Initia?
 
-Kitpot uses **6 native Initia features** that make this impossible to replicate on any other chain with the same UX:
+Kitpot uses **5 native Initia features** that make this impossible to replicate on any other chain with the same UX:
 
 | Feature | What It Enables |
 |---------|----------------|
 | **Auto-Signing Sessions** | Approve once, contributions run automatically for the entire circle duration. Like Netflix — no monthly wallet pop-ups. |
 | **.init Usernames** | Invite friends by name (`alice.init`), not hex addresses. Social coordination, not crypto jargon. |
-| **Interwoven Bridge** | Seamless deposit from Initia hub to the kitpot-2 rollup. Users never know two chains are involved. |
 | **Social Login (Privy)** | Google / Apple / email sign-in. No MetaMask, no seed phrases, no crypto knowledge needed. |
 | **Dedicated Rollup** | `kitpot-2` (EVM chain ID: `64146729809684`) — all circle history on one chain, fully transparent, immutable. |
-| **InterwovenKit** | Required SDK for wallet integration, tx signing, and bridge access. |
+| **InterwovenKit** | Required SDK for wallet integration and tx signing. |
 
 ---
 
@@ -95,9 +94,9 @@ Kitpot uses **6 native Initia features** that make this impossible to replicate 
 
 ## Run Locally
 
-```bash
-# Prerequisites: Bun 1.x, Foundry, Weave CLI
+**Prerequisites:** Bun 1.x, Foundry
 
+```bash
 # 1. Clone and install
 git clone <repo> && cd kitpot
 bun install
@@ -105,39 +104,84 @@ bun install
 # 2. Install contract deps
 cd contracts && forge install && cd ..
 
-# 3. Start local chain (Anvil)
+# 3. Start local chain
 anvil
 
-# 4. Deploy contracts
+# 4. Set your deployer private key (Anvil account #0 by default)
+export PRIVATE_KEY=<your-anvil-private-key>
+
+# 5. Deploy contracts + auto-update .env.local
+bun run deploy:local
+
+# 6. Start frontend
+bun dev
+# Open http://localhost:3000 — select "Local" in the network switcher
+```
+
+> **Never put private keys in `.env.local`, scripts, READMEs, or anywhere in the repo.**
+> For local Anvil testing, copy keys from `anvil` startup output — it prints 10 test accounts on launch.
+> For testnet, use a dedicated throwaway wallet with no real funds.
+
+**For test scripts** (`scripts/test/*`), set account keys as env vars:
+```bash
+export ACCOUNT_0=<key>   # Creator / deployer (Anvil account #0)
+export ACCOUNT_1=<key>   # Alice
+export ACCOUNT_2=<key>   # Bob
+export ACCOUNT_3=<key>   # Charlie
+export ACCOUNT_4=<key>   # Dave
+```
+
+---
+
+## Run on Testnet (kitpot-2)
+
+Contracts are already deployed on kitpot-2. You only need to point the frontend at the live RPC.
+
+**Option A — Use the public VPS node (recommended)**
+
+```bash
+# apps/web/.env.local
+NEXT_PUBLIC_TESTNET_RPC_URL=https://rpc.your-domain.xyz   # your VPS domain → port 8545
+NEXT_PUBLIC_TESTNET_CHAIN_ID=64146729809684
+NEXT_PUBLIC_TESTNET_CONTRACT_ADDRESS=0xecb3a0F9381FDA494C3891337103260503411621
+NEXT_PUBLIC_TESTNET_USDC_ADDRESS=0xe5e7064B389a5d4ACE1d93b3C5E36bF27b4274Fa
+NEXT_PUBLIC_TESTNET_REPUTATION_ADDRESS=0xf10267F194f8E09F9f2aa8Fc435e7A2Dac58172a
+NEXT_PUBLIC_TESTNET_ACHIEVEMENTS_ADDRESS=0xC421652EC7efBad98dDF42646055e531a28f61Ea
+NEXT_PUBLIC_DEFAULT_NETWORK=testnet
+
+bun dev
+# Switch to "Testnet" in the network switcher — or it defaults to testnet automatically
+```
+
+**Option B — Run your own kitpot-2 node via Docker**
+
+```bash
+# 1. Copy chain data to VPS
+rsync -avz ~/.minitia user@your-vps:~/.minitia
+
+# 2. On VPS — create .env from example
+cp infra/dokploy/.env.example infra/dokploy/.env
+# Edit .env: fill in mnemonics, set RUN_OPINIT=false for basic demo
+
+# 3. Build and run
+docker compose -f infra/dokploy/docker-compose.yml up --build
+
+# 4. Verify node is live
+curl -X POST http://localhost:8545 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+**Redeploy contracts** (only if you need fresh addresses):
+
+```bash
+# Set testnet deployer key — use a dedicated throwaway wallet, never your main wallet
+export PRIVATE_KEY=<testnet-deployer-key>
+
 cd contracts
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-  forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
-
-# 5. Configure and start frontend
-cp apps/web/.env.example apps/web/.env.local
-# Edit .env.local with contract addresses from step 4
-bun dev
-```
-
-Or use the one-command deploy script:
-```bash
-bun run deploy:local   # deploys + auto-updates .env.local
-```
-
-### Run with Initia testnet rollup
-
-```bash
-# Start rollup node (keep running)
-DYLD_LIBRARY_PATH=~/.weave/data/minievm@v1.2.15 \
-  ~/.weave/data/minievm@v1.2.15/minitiad start --home=~/.minitia
-
-# Start OPinit bots
-weave opinit start executor
-weave opinit start challenger
-
-# Frontend already points to testnet contracts via NEXT_PUBLIC_TESTNET_* env vars
-bun dev
-# Switch to "Testnet" in the network switcher (top right)
+forge script script/Deploy.s.sol \
+  --rpc-url https://rpc.your-domain.xyz \
+  --broadcast
 ```
 
 ---
@@ -165,7 +209,7 @@ kitpot/
 │   └── script/                     # Deploy.s.sol + SetupDemo.s.sol
 ├── apps/web/                        # Next.js 16 frontend
 │   └── src/
-│       ├── app/                    # Pages: landing, circles, dashboard, discover, bridge, leaderboard
+│       ├── app/                    # Pages: landing, circles, dashboard, discover, faucet, leaderboard
 │       ├── components/             # UI: circle, gamification, bridge, layout
 │       └── hooks/                  # wagmi contract hooks
 └── docs/                           # Product spec, plans

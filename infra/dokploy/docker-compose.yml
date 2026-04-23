@@ -1,13 +1,16 @@
 services:
   kitpot-node:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: infra/dokploy/Dockerfile
+      args:
+        TARGETARCH: amd64
     env_file:
       - .env
     volumes:
-      - ~/.minitia:/data/.minitia
+      - minitia-data:/data/.minitia
       - opinit-data:/data/.opinit
+      - kitpot-output:/data
     ports:
       - "8545:8545"
       - "8546:8546"
@@ -16,4 +19,6 @@ services:
     restart: unless-stopped
 
 volumes:
+  minitia-data:
   opinit-data:
+  kitpot-output:

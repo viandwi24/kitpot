@@ -11,7 +11,8 @@ async function main() {
   const { execSync } = await import("child_process");
   const contractsDir = join(import.meta.dir, "../../contracts");
 
-  const deployerKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+  const deployerKey = process.env.PRIVATE_KEY;
+  if (!deployerKey) throw new Error("PRIVATE_KEY env var not set. Run: export PRIVATE_KEY=<your-anvil-key>");
 
   // Deploy via forge script
   console.log("Running forge deploy script...\n");

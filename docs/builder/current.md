@@ -4,11 +4,59 @@
 
 ---
 
-## Phase (2026-04-21) — Plans 10-14 Executed, Plan 15 In Progress [ACTIVE]
+## Phase (2026-04-23) — Infra + Demo Polish [ACTIVE]
 
-All gap coverage plans executed. Renumbered plans so dev setup is last (Plan 16).
+All contract and frontend features built and deployed. Focus now is demo readiness and VPS deployment.
 
-### Plan Order (final)
+### What is LIVE (deployed on kitpot-2 testnet)
+
+**Contracts on kitpot-2 (Chain ID: 64146729809684):**
+- `KitpotCircle`: `0xecb3a0F9381FDA494C3891337103260503411621`
+- `KitpotReputation`: `0xf10267F194f8E09F9f2aa8Fc435e7A2Dac58172a`
+- `KitpotAchievements`: `0xC421652EC7efBad98dDF42646055e531a28f61Ea`
+- `MockUSDC`: `0xe5e7064B389a5d4ACE1d93b3C5E36bF27b4274Fa`
+
+**Frontend (Vercel):** https://kitpot.vercel.app (currently points to localhost RPC, needs VPS update)
+
+**Infrastructure (`infra/dokploy/`):**
+- `Dockerfile` — single image: minitiad + opinitd, works for arm64 and amd64
+- `entrypoint.sh` — starts minitiad, waits for EVM RPC, optionally starts OPinit bots
+- `docker-compose.yml` — local Mac M1/M2 testing only
+- `.env.example` — all required env vars documented
+- Tested locally: minitiad produces blocks, OPinit executor submitting batches
+
+### What is PENDING (blockers for submission)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| VPS deployment | ❌ Not done | rsync ~/.minitia → VPS, deploy via Dokploy |
+| Public RPC domain | ❌ Not done | Traefik domain → port 8545 |
+| Vercel env update | ❌ Not done | `NEXT_PUBLIC_TESTNET_RPC_URL` → VPS domain, `NEXT_PUBLIC_DEFAULT_NETWORK=testnet` |
+| Demo video | ❌ Not done | `video_url` in submission.json still TODO |
+| DoraHacks description | ❌ Not done | Target 8k+ chars |
+
+### Next actions (in order)
+1. Deploy VPS → get public RPC domain
+2. Update Vercel env → redeploy
+3. Record demo video
+4. Write DoraHacks description
+5. Submit
+
+---
+
+## Phase (2026-04-23) — Feature Audit [DONE]
+
+Compared Kitpot vs Leticia and Drip. Key findings:
+
+- **Bridge/Interwoven Bridge**: NOT implemented. Renamed `/bridge` page to Faucet (mint MockUSDC only). Neither Drip nor Leticia have bridge UI. Bridge is NOT a scoring differentiator — removed broken bridge button that showed `alert()`.
+- **Auto-signing**: UI exists (`/circles/[id]` → auto-sign setup). Not verified working on testnet yet.
+- **MockUSDC faucet**: Works. Judge can mint USDC directly from `/bridge` (Faucet) page.
+
+---
+
+## Phase (2026-04-21–23) — All Features Built [DONE]
+
+### Plans executed
 | Plan | Title | Status |
 |------|-------|--------|
 | 01-09 | Core contracts + frontend | DONE |
@@ -16,100 +64,17 @@ All gap coverage plans executed. Renumbered plans so dev setup is last (Plan 16)
 | 11 | Soulbound Achievement NFTs | DONE |
 | 12 | Late Payment & Collateral | DONE |
 | 13 | Public Circle Discovery | DONE |
-| 14 | Comprehensive Tests (30 tests) | DONE |
-| 15 | Submission Polish | IN PROGRESS |
-| 16 | Dev Setup, Deploy & E2E Testing | **MANUAL CONFIRM** |
-
-### Next up
-- Execute Plan 15 (README, submission.json, DoraHacks description)
-- Then STOP and confirm before Plan 16
-
----
-
-## Phase (2026-04-21) — Gap Analysis [DONE]
-
-Analyzed codebase against hackathon scoring criteria and CrediKye (Grand Prize winner). Created plans 10-15 to close all gaps.
-
-### Plans Created
-
-| Plan | Title | Impact | Status |
-|------|-------|--------|--------|
-| 11 | Reputation & Trust Score System | CRITICAL — biggest scoring differentiator | Planned |
-| 12 | Soulbound Achievement NFTs | HIGH — judges love on-chain credentials | Planned |
-| 13 | Late Payment Handling & Collateral | HIGH — solves real-world #1 pain point | Planned |
-| 14 | Public Circle Discovery | MEDIUM — makes app feel complete | Planned |
-| 15 | Comprehensive Test Suite (~55 tests) | HIGH — shows rigor, judges read tests | Planned |
-| 16 | Submission Polish & Documentation | CRITICAL — README, description, video | Planned |
-
-### Execution Order
-
-```
-Plan 11 (Reputation) → Plan 12 (NFTs) → Plan 13 (Penalties) → Plan 14 (Discovery)
-    ↓
-Plan 15 (Tests) — after all feature contracts exist
-    ↓
-Plan 10 (Dev Setup & Deploy) — compile, test, deploy everything
-    ↓
-Plan 16 (Submission) — README, video, DoraHacks description
-```
-
-### Next up
-- Execute Plan 11 (Reputation contract + frontend)
-- Then 12 → 13 → 14 → 15 → 10 → 16
-
----
-
-## Phase (2026-04-20) — Plans 01-09 Executed [DONE] — Awaiting Plan 10 Confirmation
-
-All code written for Plans 01-09. **Plan 10 (Dev Setup, Deploy & E2E Testing) requires manual confirmation before executing.**
-
-### What was built
-
-**Contracts (`contracts/src/`):**
-- `KitpotCircle.sol` — full contract: circle CRUD, payments, round-robin distribution, auto-signing sessions, platform fee (Plan 02-04 combined)
-- `MockUSDC.sol` — testnet ERC20 token, 6 decimals, anyone can mint
-
-**Contract tooling (`contracts/script/`, `contracts/test/`):**
-- `Deploy.s.sol` — deploy MockUSDC + KitpotCircle
-- `SetupDemo.s.sol` — mint USDC, create demo circle, approve
-- `KitpotCircle.t.sol` — comprehensive tests (create, join, deposit, advance, sessions, lifecycle)
-
-**Frontend (`apps/web/src/`):**
-- Provider stack: wagmi + TanStack Query (Privy + InterwovenKit ready via TODO comments)
-- Layout: header with logo, nav, connect button
-- Landing page with value props
-- Create circle form with cycle duration presets
-- Join circle page (from invite link)
-- My circles list (reads all circles, filters by membership)
-- Circle dashboard: current cycle, countdown timer, payment status, turn order, history
-- Deposit button with ERC20 approve flow
-- Advance cycle button
-- Auto-signing setup (approve USDC + authorize session)
-- Batch deposit trigger
-- Bridge deposit + testnet mint button
-- Invite form with shareable link
-
-**ABI (`apps/web/src/lib/abi/`):**
-- `KitpotCircle.ts` — full ABI matching contract (placeholder, replace after forge build)
-- `MockUSDC.ts` — ERC20 + mint ABI
+| 14 | Comprehensive Tests | DONE |
+| 15 | Submission Polish (README, submission.json) | DONE |
+| 16 | Gamification expansion | DONE |
 
 ### Key files
-- `contracts/src/KitpotCircle.sol` — the core contract
-- `apps/web/src/app/circles/[id]/page.tsx` — circle dashboard (main page)
-- `apps/web/src/app/providers.tsx` — provider stack
-- `apps/web/src/hooks/` — all wagmi hooks
-
-### Next up
-- **WAITING FOR USER CONFIRMATION** to execute Plan 10
-- Plan 10: install toolchain (bun, forge), rollup setup, compile, test, deploy, run frontend, E2E testing
-
----
-
-## Phase (2026-04-20) — Project Bootstrap & Docs Infrastructure [DONE]
-
-Set up the automated docs system (CLAUDE.md + docs/builder/ + .claude/commands/) so all future AI sessions have persistent context.
-
-### What was done
-- Created `CLAUDE.md` with engineering standards, tech stack rules, project context map, and automated docs protocol
-- Created `docs/builder/` with 5 living memory files (current.md, tasks.md, changelog.md, decisions.md, memory.md)
-- Created `.claude/commands/docs-update.md` slash command
+- `contracts/src/KitpotCircle.sol` — core contract
+- `contracts/src/KitpotReputation.sol` — reputation + XP
+- `contracts/src/KitpotAchievements.sol` — soulbound NFT badges
+- `apps/web/src/app/circles/[id]/page.tsx` — circle dashboard
+- `apps/web/src/app/discover/page.tsx` — public circle discovery
+- `apps/web/src/app/leaderboard/page.tsx` — leaderboard
+- `apps/web/src/app/bridge/page.tsx` — faucet (mint MockUSDC only, no bridge)
+- `apps/web/src/components/layout/header.tsx` — nav: Discover, Leaderboard, Faucet, Dashboard, Circles, Badges
+- `infra/dokploy/Dockerfile` — VPS deployment image

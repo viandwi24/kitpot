@@ -12,7 +12,9 @@ const MOCK_USDC_ABI = [
   { type: "function", name: "balanceOf", inputs: [{ name: "", type: "address" }], outputs: [{ type: "uint256" }], stateMutability: "view" },
 ] as const;
 
-const deployer = privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+const key = process.env.ACCOUNT_0;
+if (!key) throw new Error("ACCOUNT_0 env var not set");
+const deployer = privateKeyToAccount(key as `0x${string}`);
 const target = "0x333821126889C22821F355dE3b384534b9b8ACb6" as const;
 
 const wallet = createWalletClient({ account: deployer, chain: anvil, transport: http("http://localhost:8545") });
