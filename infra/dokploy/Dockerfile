@@ -35,9 +35,9 @@ RUN set -eux; \
     chmod +x /usr/local/bin/opinitd; \
     rm /tmp/opinitd.tar.gz
 
-# ── Copy scripts (build context = infra/dokploy/) ────────────────────────────
-COPY entrypoint.sh /entrypoint.sh
-COPY setup.sh /setup.sh
+# ── Copy scripts (build context = repo root, docker file = infra/dokploy/) ───
+COPY infra/dokploy/entrypoint.sh /entrypoint.sh
+COPY infra/dokploy/setup.sh /setup.sh
 RUN chmod +x /entrypoint.sh /setup.sh
 
 # ── Runtime env defaults ──────────────────────────────────────────────────────
