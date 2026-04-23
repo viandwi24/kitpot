@@ -6,7 +6,6 @@ import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { truncateAddress } from "@/lib/utils";
 import { useInitUsername } from "@/hooks/use-init-username";
-import { WelcomeModal } from "@/components/layout/welcome-modal";
 
 const ONBOARDED_PREFIX = "kitpot_onboarded";
 
@@ -32,11 +31,9 @@ function markSeenWelcome(address: string): void {
   }
 }
 
-export function ConnectButton() {
-  const { username: kitUsername, isConnected, openConnect, openWallet } = useInterwovenKit();
+export function useWelcomeModal() {
+  const { isConnected } = useInterwovenKit();
   const { address: evmAddress } = useAccount();
-  const { name: resolvedUsername } = useInitUsername(isConnected ? evmAddress : undefined);
-
   const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
@@ -45,25 +42,30 @@ export function ConnectButton() {
     setShowWelcome(true);
   }, [isConnected, evmAddress]);
 
-  function handleCloseWelcome() {
+  function handleClose() {
     if (evmAddress) markSeenWelcome(evmAddress);
     setShowWelcome(false);
   }
+
+  return { showWelcome, handleClose };
+}
+
+export function ConnectButton() {
+  const { username: kitUsername, isConnected, openConnect, openWallet } = useInterwovenKit();
+  const { address: evmAddress } = useAccount();
+  const { name: resolvedUsername } = useInitUsername(isConnected ? evmAddress : undefined);
 
   const displayName = kitUsername || resolvedUsername;
 
   if (isConnected && evmAddress) {
     return (
-      <>
-        <button
-          onClick={openWallet}
-          className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm hover:bg-secondary/80 transition-colors"
-        >
-          <div className="h-2 w-2 rounded-full bg-primary" />
-          {displayName ? `${displayName}.init` : truncateAddress(evmAddress)}
-        </button>
-        <WelcomeModal open={showWelcome} onClose={handleCloseWelcome} />
-      </>
+      <button
+        onClick={openWallet}
+        className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm hover:bg-secondary/80 transition-colors"
+      >
+        <div className="h-2 w-2 rounded-full bg-primary" />
+        {displayName ? `${displayName}.init` : truncateAddress(evmAddress)}
+      </button>
     );
   }
 
