@@ -60,6 +60,17 @@ if [ "$MODE" = "restore" ]; then
     echo "$VALIDATOR_KEY_B64" | base64 -d > "$MINITIA_HOME/config/priv_validator_key.json"
     echo "$NODE_KEY_B64"      | base64 -d > "$MINITIA_HOME/config/node_key.json"
 
+    # Create initial validator state (required by CometBFT, not included in backup)
+    if [ ! -f "$MINITIA_HOME/data/priv_validator_state.json" ]; then
+        cat > "$MINITIA_HOME/data/priv_validator_state.json" <<'EOF'
+{
+  "height": "0",
+  "round": 0,
+  "step": 0
+}
+EOF
+    fi
+
     # Generate default app.toml and config.toml if missing
     if [ ! -f "$MINITIA_HOME/config/app.toml" ]; then
         minitiad init temp --chain-id placeholder --home /tmp/minitia-tmp > /dev/null 2>&1 || true
