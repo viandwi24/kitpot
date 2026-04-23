@@ -1,10 +1,10 @@
 {
-  "chain_id": "kitpot-1",
+  "chain_id": "kitpot-2",
   "contracts": {
-    "KitpotCircle": "0xTODO",
-    "KitpotReputation": "0xTODO",
-    "KitpotAchievements": "0xTODO",
-    "MockUSDC": "0xTODO"
+    "KitpotCircle": "0xecb3a0F9381FDA494C3891337103260503411621",
+    "KitpotReputation": "0xf10267F194f8E09F9f2aa8Fc435e7A2Dac58172a",
+    "KitpotAchievements": "0xC421652EC7efBad98dDF42646055e531a28f61Ea",
+    "MockUSDC": "0xe5e7064B389a5d4ACE1d93b3C5E36bF27b4274Fa"
   },
   "demo_url": "https://kitpot.vercel.app",
   "video_url": "https://youtu.be/TODO"

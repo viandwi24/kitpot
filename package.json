@@ -1,12 +1,14 @@
 {
   "name": "kitpot",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "bun --cwd apps/web dev",
     "build": "bun --cwd apps/web build",
     "test:contracts": "forge test --root contracts -vv",
-    "postinstall": "bash scripts/patch-interwovenkit.sh"
+    "deploy:local": "bash scripts/deploy-local.sh"
   },
   "devDependencies": {
     "viem": "^2.48.4"

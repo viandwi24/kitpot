@@ -83,23 +83,6 @@ export function LandingSections() {
           </Button>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-20 grid w-full max-w-xl grid-cols-3 gap-4"
-        >
-          {[
-            { value: "300M+", label: "ROSCA Participants" },
-            { value: "1%", label: "Platform Fee" },
-            { value: "60s", label: "Demo Cycle" },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur-sm">
-              <div className="text-2xl font-bold sm:text-3xl">{stat.value}</div>
-              <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{stat.label}</div>
-            </div>
-          ))}
-        </motion.div>
       </section>
 
       {/* ─── HOW IT WORKS ─── */}
