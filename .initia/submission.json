@@ -3,7 +3,7 @@
   "repo_url": "https://github.com/viandwi24/kitpot",
   "commit_sha": "<fill-at-submit-time>",
   "rollup_chain_id": "kitpot-2",
-  "deployed_address": "0x18c83c7b9f2AFBb22bB42d1BB58aaA6332D590Da",
+  "deployed_address": "0x62d244f304Bc7638D44f5e335DFaDF8c9DCef990",
   "vm": "evm",
   "native_feature": "auto-signing",
   "core_logic_path": "/contracts/src/KitpotCircle.sol",

@@ -6,8 +6,17 @@ import "../src/MockUSDC.sol";
 import "../src/KitpotCircle.sol";
 import "../src/interfaces/IKitpotReputation.sol";
 
-/// @notice Setup demo scenario: mint USDC, create circle, join members.
-/// Usage: forge script script/SetupDemo.s.sol --rpc-url $KITPOT_RPC_URL --broadcast
+/// @notice Seed the rollup with demo data so judges land on a non-empty UI.
+/// Creates one public circle in "Forming" state where the judge can immediately
+/// join as the 2nd member and experience the full deposit + auto-sign flow.
+///
+/// Usage:
+///   export PRIVATE_KEY=<operator key>
+///   export KITPOT_ADDRESS=0x...
+///   export USDC_ADDRESS=0x...
+///   forge script script/SetupDemo.s.sol --rpc-url <rpc> --broadcast --gas-limit 30000000
+///
+/// See plan 19 §4 Bucket F.
 contract SetupDemoScript is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
@@ -21,30 +30,38 @@ contract SetupDemoScript is Script {
 
         address deployer = vm.addr(deployerKey);
 
-        // 1. Mint 10,000 USDC to deployer
+        // 1. Mint 10,000 USDC to the deployer so it can seed circles.
         usdc.mint(deployer, 10_000 * 1e6);
 
-        // 2. Approve KitpotCircle to spend deployer's USDC
+        // 2. Approve KitpotCircle as a spender (creator pays collateral on create).
         usdc.approve(kitpotAddr, type(uint256).max);
 
-        // 3. Create demo circle: "Alumni Savings", 100 USDC, 3 members, 60s cycle
+        // 3. Create one public demo circle in "Forming" state.
+        //    - 3 members so judges can fill the second slot quickly.
+        //    - 120s cycle duration per plan 19 §9 decision #2 (gives judges
+        //      time to see "waiting for cycle" state before tapping Distribute).
+        //    - Public, no tier gate so any new wallet can join.
         uint256 circleId = kitpot.createCircle(
-            "Alumni Savings",              // name
-            "Monthly savings for demo",    // description
-            usdcAddr,                      // token
-            100 * 1e6,                     // 100 USDC contribution
-            3,                             // 3 members
-            60,                            // 60s cycle duration
-            30,                            // 30s grace period
-            500,                           // 5% late penalty
-            true,                          // public
-            IKitpotReputation.TrustTier.Unranked, // no tier gate
-            "creator.init"                 // creator username
+            "Arisan Demo Hackathon",
+            "Demo circle for INITIATE judges. Join, deposit, toggle auto-sign.",
+            usdcAddr,
+            100 * 1e6,                              // 100 USDC per cycle
+            3,                                      // 3 members total
+            120,                                    // 120s cycle
+            60,                                     // 60s grace period
+            500,                                    // 5% late penalty
+            true,                                   // public (discoverable)
+            IKitpotReputation.TrustTier.Unranked,   // no tier gate
+            "creator.init"                          // display username
         );
 
         vm.stopBroadcast();
 
         console.log("=== DEMO SETUP COMPLETE ===");
         console.log("Circle ID:", circleId);
+        console.log("Status: Forming (1 of 3 members - judges can join slots 2 and 3)");
+        console.log("");
+        console.log("To test a completed flow, have a second wallet join + deposit,");
+        console.log("or run the optional SetupDemoCompleted script after this one.");
     }
 }

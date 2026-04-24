@@ -5,6 +5,7 @@ import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { truncateAddress } from "@/lib/utils";
+import { useGasFaucet } from "@/hooks/use-gas-faucet";
 
 const ONBOARDED_PREFIX = "kitpot_onboarded";
 
@@ -52,6 +53,8 @@ export function useWelcomeModal() {
 export function ConnectButton() {
   const { username, isConnected, openConnect, openWallet } = useInterwovenKit();
   const { address: evmAddress } = useAccount();
+
+  useGasFaucet();
 
   if (isConnected && evmAddress) {
     return (

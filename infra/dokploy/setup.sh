@@ -4,18 +4,37 @@
 # Run inside container: docker exec -it <container> /setup.sh [mode]
 #
 # Modes:
+#   /setup.sh reset     — wipe chain state under /data/.minitia (and opinit).
+#                         After reset, restart container → entrypoint waits →
+#                         run /setup.sh init or /setup.sh restore again.
 #   /setup.sh restore   — restore existing kitpot-2 from env vars (GENESIS_B64, etc.)
 #   /setup.sh init      — initialize a fresh chain, ready for contract deployment
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
 MINITIA_HOME="${MINITIA_HOME:-/data/.minitia}"
+OPINIT_HOME="${OPINIT_HOME:-/data/.opinit}"
 MODE="${1:-}"
+
+# ── Mode: reset ───────────────────────────────────────────────────────────────
+# Wipes chain state so the next init/restore starts from scratch. Safe to run
+# while the container is up — minitiad will crash and Docker will restart the
+# container, which then falls back to the "waiting for setup" loop.
+if [ "$MODE" = "reset" ]; then
+    echo "[setup] RESET — wiping $MINITIA_HOME and $OPINIT_HOME"
+    echo "[setup] This deletes the genesis, keyring, block state, and mnemonic."
+    echo "[setup] Press Ctrl+C in the next 3 seconds to abort..."
+    sleep 3
+    rm -rf "$MINITIA_HOME" "$OPINIT_HOME" /data/operator_mnemonic.txt /data/operator_private_key.hex
+    echo "[setup] Wiped. Restart the container so entrypoint re-enters the setup loop."
+    echo "[setup] Then run:  docker exec <container> /setup.sh init"
+    exit 0
+fi
 
 # ── Guard: already configured ────────────────────────────────────────────────
 if [ -f "$MINITIA_HOME/config/genesis.json" ]; then
     echo "[setup] Chain already configured at $MINITIA_HOME"
-    echo "[setup] Delete $MINITIA_HOME to reinitialize."
+    echo "[setup] To start over, run:  /setup.sh reset  (wipes all state)"
     exit 0
 fi
 
@@ -221,10 +240,17 @@ print(hrp + '1' + ''.join([charset[d] for d in data + checksum]))
         fi
     fi
 
+    # ── Save mnemonic to persistent file ──────────────────────────────────────
+    # WAJIB — tanpa ini, kalau user tidak sempat copy mnemonic saat docker exec,
+    # operator key permanen hilang dan 1T GAS di genesis terkunci.
+    echo "$OPERATOR_MNEMONIC" > /data/operator_mnemonic.txt
+    chmod 600 /data/operator_mnemonic.txt
+    echo "[setup] Mnemonic saved to /data/operator_mnemonic.txt (recoverable anytime)"
+
     # ── Derive EVM private key for forge deployment ───────────────────────────
     # minitiad uses ethsecp256k1 with HD path m/44'/60'/0'/0/0 — same as Ethereum.
-    # We derive the private key from the mnemonic via cast to guarantee the
-    # resulting EVM address matches the genesis-funded operator address.
+    # If `cast` is available (via Foundry install in Dockerfile), write hex too.
+    # If not, user derives from mnemonic on laptop: cast wallet private-key "$MNEMONIC" "m/44'/60'/0'/0/0"
     echo "[setup] Deriving EVM private key for contract deployment..."
     OPERATOR_PRIVATE_KEY_HEX=$(cast wallet private-key \
         "$OPERATOR_MNEMONIC" \
@@ -233,11 +259,15 @@ print(hrp + '1' + ''.join([charset[d] for d in data + checksum]))
 
     if [ -n "$OPERATOR_PRIVATE_KEY_HEX" ]; then
         echo "$OPERATOR_PRIVATE_KEY_HEX" > /data/operator_private_key.hex
+        chmod 600 /data/operator_private_key.hex
         DERIVED_EVM=$(cast wallet address "0x$OPERATOR_PRIVATE_KEY_HEX" 2>/dev/null || echo "")
         echo "[setup] EVM deployer address: $DERIVED_EVM"
         echo "[setup] Operator address:     $OPERATOR_ADDR"
+        echo "[setup] Private key saved to /data/operator_private_key.hex"
     else
-        echo "[setup] Warning: cast not available — contract deployment may fail"
+        echo "[setup] cast not installed in container — private key NOT auto-derived."
+        echo "[setup] Recover on laptop from /data/operator_mnemonic.txt:"
+        echo "[setup]   cast wallet private-key \"\$(cat operator_mnemonic.txt)\" \"m/44'/60'/0'/0/0\""
     fi
 
     echo ""
