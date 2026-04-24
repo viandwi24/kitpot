@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@initia/initia.js": "^1.1.0",
     "@initia/interwovenkit-react": "^2.8.0",
     "@privy-io/react-auth": "latest",
     "@radix-ui/react-avatar": "^1.1.0",
