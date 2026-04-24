@@ -71,7 +71,6 @@ export function Providers({ children }: { children: ReactNode }) {
           {...TESTNET}
           defaultChainId={net.cosmosChainId}
           customChain={KITPOT_CUSTOM_CHAIN}
-          customChains={[KITPOT_CUSTOM_CHAIN]}
           enableAutoSign={{ [net.cosmosChainId]: ["/minievm.evm.v1.MsgCall"] }}
           theme="dark"
           disableAnalytics
