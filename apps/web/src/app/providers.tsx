@@ -1,5 +1,6 @@
 "use client";
 
+import "@/lib/react-polyfill";
 import { type ReactNode, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
