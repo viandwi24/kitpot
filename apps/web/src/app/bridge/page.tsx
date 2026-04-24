@@ -1,6 +1,7 @@
 "use client";
 
 import { useAccount } from "wagmi";
+import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,18 +13,21 @@ import { useState } from "react";
 
 export default function FaucetPage() {
   const { address } = useAccount();
-  const { data: balance } = useTokenBalance(CONTRACTS.mockUSDC);
-  const { mint, isPending, isConfirming, isSuccess } = useMintTestUSDC();
+  const { openBridge } = useInterwovenKit();
+  const { data: balance, refetch: refetchBalance } = useTokenBalance(CONTRACTS.mockUSDC);
+  const { mint, isPending, mintedAmount } = useMintTestUSDC(() => refetchBalance());
   const [amount, setAmount] = useState("1000");
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-8">
-      <h1 className="mb-2 text-2xl font-bold">Testnet Faucet</h1>
-      <p className="mb-6 text-muted-foreground">
-        Mint free test USDC to your wallet and start joining savings circles.
-      </p>
+    <div className="mx-auto max-w-lg space-y-4 px-4 py-8">
+      <div>
+        <h1 className="text-2xl font-bold">Testnet Faucet</h1>
+        <p className="mt-2 text-muted-foreground">
+          Mint free test USDC or bridge from Initia L1 to join savings circles on kitpot-2.
+        </p>
+      </div>
 
-      <Card className="mb-4">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Your Balance</CardTitle>
         </CardHeader>
@@ -32,13 +36,16 @@ export default function FaucetPage() {
             {balance !== undefined ? formatUSDC(balance) : "..."}{" "}
             <span className="text-lg text-muted-foreground">USDC</span>
           </div>
+          {mintedAmount && (
+            <p className="mt-2 text-sm text-primary">+{mintedAmount} USDC minted</p>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Get Test USDC</CardTitle>
-          <CardDescription>Mint free USDC for testing on kitpot-2 testnet</CardDescription>
+          <CardTitle className="text-base">Mint Test USDC</CardTitle>
+          <CardDescription>Free mock USDC for testing — kitpot-2 testnet</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-2">
@@ -52,18 +59,35 @@ export default function FaucetPage() {
           </div>
           <Button
             className="w-full"
-            disabled={isPending || isConfirming || !address}
+            disabled={isPending || !address}
             onClick={() => mint(amount)}
           >
-            {isPending || isConfirming
-              ? "Minting..."
-              : isSuccess
-              ? "Minted! Refresh to see balance"
-              : `Mint ${amount} USDC`}
+            {isPending ? "Minting..." : `Mint ${amount} USDC`}
           </Button>
           {!address && (
-            <p className="text-center text-xs text-muted-foreground">Connect wallet to mint</p>
+            <p className="text-center text-xs text-muted-foreground">
+              Connect wallet to mint
+            </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Bridge from Initia L1</CardTitle>
+          <CardDescription>
+            Move assets from Initia hub (initiation-2) to the kitpot-2 rollup via Interwoven Bridge.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={!address}
+            onClick={() => openBridge()}
+          >
+            Open Bridge
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -764,3 +764,148 @@ All of these must be true before hitting "Submit" on DoraHacks:
 - [ ] DoraHacks form fields filled: rollup chain ID / txn link / deployment link + submission.json content + README + demo video URL
 
 When all boxes ✅, the project meets the `§1 Eligibility & Requirements` verbatim. Submit.
+
+---
+
+## 13. Production state + technical decision log (updated 2026-04-25)
+
+> **Start here if you are a new AI session.** This section records what's actually live, what decisions we made during execution, and discovered behaviors that aren't obvious from reading the plan alone. Every bullet here is grounded in an executed step, not a proposal.
+
+### 13.1 Live production endpoints
+
+| Layer | URL / Value | Status |
+|---|---|---|
+| Vercel frontend (production) | `https://kitpot.vercel.app` | ✅ live |
+| Cosmos RPC (kitpot-2) | `https://kitpot-cosmos.viandwi24.com` | ✅ live, CORS open |
+| Cosmos REST (kitpot-2) | `https://kitpot-rest.viandwi24.com` | ✅ live, CORS open |
+| EVM JSON-RPC (kitpot-2) | `https://kitpot-rpc.viandwi24.com` | ✅ live |
+| Rollup chain_id (Cosmos) | `kitpot-2` | current height >200 blocks |
+| Rollup chain_id (EVM) | `64146729809684` (`0x3a57530b3714`) | |
+| L1 reference | `initiation-2` via `TESTNET` preset | via rest.testnet.initia.xyz |
+
+### 13.2 Deployed contract addresses (kitpot-2)
+
+```
+KitpotCircle:       0x62d244f304Bc7638D44f5e335DFaDF8c9DCef990
+MockUSDC:           0xe7bf5d16190f4d7d4c1aE99250405702d2f0a442
+KitpotReputation:   0x073aa6CFCF9E663cc24b9EB72B8E71E6d9ba072d
+KitpotAchievements: 0x956a0285B10c8afAEaDef98A77b1da48642dd97A
+Operator / deployer: 0xffecdeA299A1aa7Ad213731C6e6D8363a5A723D2
+                     init1llkdag5e5x4845snwvwxumvrvwj6wg7jjlqadr
+```
+
+Seeded circles: 0 (Arisan Demo Hackathon), 1 (News Writer), 2 (Demo Circle E2E) — all active 3/3 members via on-chain E2E test.
+
+### 13.3 Vercel env (13 keys)
+
+All `NEXT_PUBLIC_KITPOT_*` + `NEXT_PUBLIC_CONTRACT_ADDRESS` + `NEXT_PUBLIC_USDC_ADDRESS` + `NEXT_PUBLIC_REPUTATION_ADDRESS` + `NEXT_PUBLIC_ACHIEVEMENTS_ADDRESS` + `NEXT_PUBLIC_PRIVY_APP_ID` + `FAUCET_MNEMONIC` (server-only).
+
+`FAUCET_MNEMONIC` = operator's 24-word mnemonic (same wallet as operator/deployer). Used server-side by `/api/gas-faucet` route for native Cosmos MsgSend.
+
+### 13.4 Dependency versions pinned by execution
+
+| Package | Version | Why |
+|---|---|---|
+| `@initia/interwovenkit-react` | `^2.8.0` | latest at testing time; works end-to-end |
+| `@initia/initia.js` | `^1.1.0` | added for gas-faucet server-side native signing |
+| `react` / `react-dom` | `19.2.5` | Next 15 peer |
+| `wagmi` | `^2.0.0` | InterwovenKit transitive requirement |
+| `viem` | `^2.0.0` | same |
+| `next` | `^15.0.0` | app router + api route runtime |
+
+### 13.5 Decisions made during execution (immutable log)
+
+1. **Gas faucet uses native Cosmos MsgSend, NOT viem EVM value transfer.**
+   - Root cause: EVM value transfer on MiniEVM only updates EVM ledger, does NOT register `x/auth` account entry for the receiver. InterwovenKit queries `/cosmos/auth/v1beta1/account_info/{addr}` before any tx; without auth entry, query returns 404 → all txs fail with "account does not exist".
+   - Fix: `/api/gas-faucet/route.ts` now uses `@initia/initia.js` MnemonicKey + Wallet + MsgSend to create the auth entry AND credit balance in one shot.
+   - Plan 19 §4.C was updated with this correct implementation.
+
+2. **Drip amount is 100,000,000 raw GAS units** (`= 100 × 10^6` wei-equivalent in bank module).
+   - Genesis gave operator ~1,000,000,000,000 raw GAS (1T). With 100M raw per drip, ~10,000 judges can be funded.
+   - Gas price on rollup = 0, so tiny balance is enough for unlimited txs per user.
+   - Earlier attempts with `parseEther("0.01")` = 10^16 wei failed because operator balance in EVM view is only 10^12 wei (`GAS` registered with 18 decimals on EVM side).
+
+3. **`customChains` prop (plural) removed from InterwovenKitProvider.**
+   - InterwovenKit v2.8.0 type definition does NOT accept `customChains` — only `customChain` (singular). Type check fails with that prop.
+   - Leticia reference also uses only singular, no issues. Plan 18 §2.4 originally suggested both; execution proved singular is enough.
+
+4. **`submitTxBlock` requires explicit `fee: StdFee`.**
+   - The TxParams type (submit variants) differs from TxRequest (request variants). `fee` is mandatory.
+   - Set to `{ amount: [{ denom: "GAS", amount: "0" }], gas: "500000" }` in `useKitpotTx.ts`. Any non-negative fee works since rollup gas price = 0.
+
+5. **MiniEVM gas estimation undershoots for multi-step forge scripts.**
+   - `forge script Deploy.s.sol --broadcast` succeeds for the 4 contract creations but fails the 3 authorization transactions with `status 0` and tight gas (≈61k).
+   - Workaround: retry with explicit `--gas-limit 200000` per tx via `cast send`. Documented in plan 19 §4.B.
+
+6. **Em-dash `—` breaks Solidity compiler.**
+   - `contracts/script/SetupDemo.s.sol` initially had em-dash in `console.log` string → compilation failed with "Invalid character in string" error. Replaced with plain hyphen `-`.
+   - Rule: Solidity string literals accept ASCII only unless prefixed with `unicode""`.
+
+7. **Rollup deployment uses Dockerfile-only mode in Dokploy (not compose).**
+   - `VOLUME ["/data"]` in Dockerfile creates anonymous volume per container — lost on redeploy. Added explicit named volume `kitpot-data` via Dokploy UI to persist chain state across rebuilds.
+   - Plan 19 §4.A was drafted assuming docker-compose, but reality is Dockerfile-only; volume mounting was manually set in Dokploy.
+
+8. **`/setup.sh reset` mode added to handle container state cleanup without SSH.**
+   - Original setup.sh only had `init` + `restore`. Reset required volume-level wipe from host. Added `reset` mode that `rm -rf /data/.minitia /data/.opinit /data/operator_mnemonic.txt /data/operator_private_key.hex` with 3s confirmation delay.
+
+9. **Mnemonic persists to `/data/operator_mnemonic.txt` (was only stdout before).**
+   - First execution lost mnemonic because setup.sh init only printed to stdout (docker exec session terminal); user didn't have chance to save. Patched setup.sh to always write mnemonic to persistent file `/data/operator_mnemonic.txt` regardless of cast availability.
+
+10. **`DEFAULT_SESSION_EXPIRY` for autoSign = 10 minutes.**
+    - Drawer shows "for 10 minutes" by default. User must re-enable after expiry. Longer options in dropdown but default 10 min is InterwovenKit's safe default.
+
+### 13.6 Discovered behaviors (not bugs, but good to know)
+
+| Behavior | Explanation |
+|---|---|
+| `useEffectEvent` error persists in console | `@initia/interwovenkit-react` v2.8.0 uses a React hook that's canary-only. Stable React 19.2 doesn't expose it. Non-blocking — UI renders and flows work despite the error. |
+| Wallet logout on hard refresh (`Cmd+Shift+R`) | Brave external wallet state not persisted by default wagmi config. Soft nav (Link click) preserves session. Mitigation: use Google login (Privy embedded wallet) for seamless reconnect. |
+| Session wallet re-derive popup after localStorage clear | After Enable auto-sign, InterwovenKit caches derived session wallet in localStorage. If cache gone, first tx triggers a re-derivation prompt (Brave Wallet "Sign this message" popup). Subsequent txs silent. Expected per InterwovenKit design. |
+| Auto-sign ON status survives refresh | Authz + feegrant grants stored on Initia L1 chain. Reconnect → InterwovenKit queries chain → recognizes active grants → UI shows Auto-sign ON immediately. No client-side cache required for this state. |
+| `.init` username returns null for unclaimed wallets | `useInterwovenKit().username` + `useUsernameQuery(address)` hit L1 registry. If user hasn't claimed via Initia username portal, returns null. UI fallback: `truncateAddress(hexAddress)`. To show "pochita.init" in circles, user must register at the Initia username portal first. |
+
+### 13.7 UX refinements applied (2026-04-25)
+
+- **Circle detail page**: removed `<BridgeDeposit />` duplicate (balance + mint + bridge button). Now just a 1-line hint linking to `/bridge`.
+- **Faucet page** (`/bridge`): unified 3 cards (Balance auto-polling · Mint with auto-refetch + auto-dismissing "+1000 USDC minted" toast · Bridge button via `openBridge()`).
+- **Balance auto-poll**: `useTokenBalance` now refetches every 10s + on mint success. Eliminates "Refresh page" text that was UX dead-end.
+- `bridge-deposit.tsx` component deleted (no longer imported anywhere).
+
+### 13.8 What's blocking submission (priority order)
+
+| Item | Blocker level | Fix |
+|---|---|---|
+| README.md root pitch + judge test steps + addresses | **BLOCKER** | Write using template from plan 19 §4.G |
+| Demo video 1–3 min uploaded to YouTube/Loom | **BLOCKER** | Record per plan 19 §10 script. Recommend Google login flow for smooth UX. |
+| `.initia/submission.json`.`commit_sha` | **BLOCKER** | `git rev-parse HEAD` at final commit time |
+| `.initia/submission.json`.`demo_video_url` | **BLOCKER** | Set after upload |
+| Commit + push UX fix (2026-04-25) | HIGH | `git add` + `git commit` + `git push` triggers Vercel rebuild |
+| Claim `.init` username for showcase | MEDIUM | Optional polish — makes demo video cleaner if user shows `.init` badge |
+| Fix wallet persistence (use Privy Google login path) | MEDIUM | Rewrite demo video with Google login to avoid reconnect friction |
+
+### 13.9 Scoring rubric estimate (plan §1.4 weights)
+
+After all §13.8 blockers resolved + demo video recorded:
+
+| Criterion | Weight | Est. score |
+|---|---|---|
+| Originality & Track Fit | 20% | 18/20 |
+| **Technical Execution & Initia Integration** | **30%** | **28/30** (native features proven end-to-end, zero hallucination) |
+| Product Value & UX | 20% | 16–18/20 (after 2026-04-25 UX pass) |
+| Working Demo & Completeness | 20% | 18–20/20 (after README + video) |
+| Market Understanding | 10% | 9/10 |
+| **Target total** | | **~90/100** |
+
+Current pre-submission est: 85/100. README + video alone adds 5–7 points.
+
+### 13.10 If you are an AI builder resuming this work
+
+1. Read §13.1–§13.9 in full first. Do not re-execute anything unless you verify it hasn't been done.
+2. Check `.initia/submission.json` for placeholder fields — those are the remaining blockers.
+3. Do NOT modify:
+   - Gas faucet API route logic (native Cosmos MsgSend is correct; any EVM value transfer variant will re-break auth account registration)
+   - `customChain` config shape (singular, not plural)
+   - `submitTxBlock` fee field (mandatory per SDK type)
+   - DRIP_AMOUNT scale (raw bank units, not parseEther)
+4. Safe to work on: README drafting, demo video script refinement, auxiliary UI polish, docs updates.
+5. Never `docker volume rm` or `docker exec /setup.sh reset` on production VPS without user approval — chain state is live, re-init loses all circles + deposits.

@@ -586,3 +586,96 @@ If a different builder session picks this up mid-execution, they should:
 3. Run the acceptance check for that bucket's successor.
 4. Continue from there. Do not skip buckets.
 5. Never modify plan 18's code path (use-kitpot-tx, providers, autosign toggle) — if a bug appears there, fix per plan 18 §12.3 gap pattern, not by rewriting.
+
+---
+
+## 12. Execution log (updated 2026-04-25)
+
+> **Read this section if you're resuming work.** Every bucket A–F has been executed; Bucket G (README + video + final submit) is what remains. Below is the verbatim log of what happened, what bugs surfaced, and how each was resolved.
+
+### 12.1 Bucket status snapshot
+
+| Bucket | Status | Notes |
+|---|---|---|
+| **A** — VPS container live + Traefik | ✅ DONE | Dockerfile-only mode in Dokploy (not compose). Explicit named volume `kitpot-data` added via Dokploy UI to persist `/data` across rebuilds. CORS patches in entrypoint.sh verified via `curl -H Origin: ... | grep access-control`. |
+| **B** — Deploy contracts | ✅ DONE | 4 addresses live at `0x62d244... / 0xe7bf5d... / 0x073aa6... / 0x956a02...`. 3 authorization txs retried manually with `cast send --gas-limit 200000` due to MiniEVM gas estimation undershoot (expected per plan 19 §4.B notes). |
+| **C** — Gas faucet API | ✅ DONE | **Migrated from EVM value transfer to native Cosmos `x/bank` MsgSend** via `@initia/initia.js`. Root cause + fix in plan 18 §13.5 #1. |
+| **D** — Vercel env | ✅ DONE | 13 keys including `FAUCET_MNEMONIC` (was `FAUCET_PRIVATE_KEY`, renamed). |
+| **E** — Privy allowlist | ✅ DONE | `kitpot.vercel.app` added. Confirmed via successful Brave Wallet connect flow. |
+| **F** — Seed demo data | ✅ DONE | Circle 0 via `SetupDemo.s.sol`. Circle 1 ("News Writer") + Circle 2 ("Demo Circle E2E") created by user via UI + filled via test script. |
+| **G** — README + video + final submission | ❌ PENDING | README draft + demo video recording + commit_sha + demo_video_url fill. See §12.6 below. |
+
+### 12.2 Scenario 1–10 results (live production, 2026-04-25)
+
+| # | Scenario | Result | Notes |
+|---|---|---|---|
+| 1 | Cold open + landing | ✅ PASS | Landing renders. `useEffectEvent` error in console but non-blocking. |
+| 2 | Connect + bootstrap | ⚠️ PARTIAL | Brave Wallet connect works. Gas faucet auto-drip works after `FAUCET_MNEMONIC` env set + native MsgSend migration. Hard refresh loses Brave session (see plan 18 §13.6). |
+| 3 | Faucet + browse circles | ✅ PASS | After UX pass (2026-04-25), Faucet page unified with auto-refetching balance + mint + bridge button. |
+| 4 | Join circle | ✅ PASS | 2 tx (approve + joinCircle) each drawer + Brave popup. Successful. Circles 0, 1, 2 all reached active state 3/3 during testing. |
+| 5 | Enable auto-sign | ✅ PASS | 2 messages (Grant authz + MsgGrantAllowance feegrant) in single drawer → approve → Brave popup → on-chain grants recorded at L1. |
+| 6 | **Silent cycle deposit** | ✅ **PASS — killer moment** | First deposit after Enable: NO drawer, NO Brave popup, tx broadcast silent. Verified on-chain via `hasPaid` + balance delta −100 USDC. |
+| 7 | Advance cycle, pot distributed | ✅ PASS | Operator advance cycle 0 → pot 297 USDC transferred to creator (matches `300 − 1% fee`). Cycle 1 → user receives 297 USDC (2700 → 2997). |
+| 8 | Disable auto-sign | ⏭️ SKIPPED | Trust by design per API docs; not explicitly tested during session. |
+| 9 | Reload resilience | ❌ FAIL (partial) | Hard refresh logs out wallet (Brave). Auto-sign status correctly restored from chain. Recommendation: use Google login flow. |
+| 10 | Mobile viewport | ⏭️ SKIPPED | Not tested. Optional polish per plan 19 §9 decision 4. |
+
+**Core demo value proposition PROVEN** end-to-end: scenario 5 + 6 + 7 (enable auto-sign → silent deposit → pot distribution) all pass in production.
+
+### 12.3 Bugs discovered + resolutions (chronological)
+
+| # | Bug | Resolution |
+|---|---|---|
+| 1 | Dokploy DB lock error `resource temporarily unavailable` on container restart | User did not use `docker volume rm` (plan 19 called that, was wrong); actual fix was `/setup.sh reset` mode added, which wipes chain data from inside container. Then Dokploy restart auto-boots to "waiting for setup" state. |
+| 2 | Volume `kitpot-data` was anonymous per Dockerfile-only Dokploy mode | Added explicit named volume in Dokploy UI to persist across rebuilds. |
+| 3 | `cast` not in container → `setup.sh init` couldn't derive EVM private key | Patched setup.sh to always save mnemonic to `/data/operator_mnemonic.txt` (persistent). User copies mnemonic to laptop, derives hex via `cast wallet private-key $MNEMONIC "m/44'/60'/0'/0/0"`. |
+| 4 | Initial `forge script Deploy.s.sol` 3 authorization txs failed with gas ≈61k | Retried manually with `cast send --gas-limit 200000`. Known MiniEVM gas estimation quirk. |
+| 5 | Em-dash `—` in `SetupDemo.s.sol` string broke Solidity compile | Replaced with ASCII `-`. |
+| 6 | TypeScript build fail: `customChains` prop not in InterwovenKit type | Removed plural form — singular `customChain` only. Leticia reference confirms this. |
+| 7 | TypeScript build fail: `submitTxBlock` requires `fee: StdFee` | Added `AUTO_SIGN_FEE = { amount: [{ denom: "GAS", amount: "0" }], gas: "500000" }` constant in `use-kitpot-tx.ts`. |
+| 8 | Gas faucet returned 500: `insufficient balance for transfer: EVMCall failed` | Initial DRIP_AMOUNT was `parseEther("0.01")` = 10^16 wei, but operator had only 10^12 wei in EVM view (GAS registered with 18 decimals). Plus root issue: **EVM value transfer doesn't register x/auth account**. Migrated to native Cosmos `x/bank` MsgSend via `@initia/initia.js` with 100M raw GAS drip. |
+| 9 | Vercel build fail: `FAUCET_PRIVATE_KEY` env present but gas-faucet needed mnemonic | Renamed env to `FAUCET_MNEMONIC` with full 24-word operator mnemonic. Updated Vercel config. |
+| 10 | Hard refresh logs out Brave Wallet | Accepted limitation — documented in plan 18 §13.6. Recommended Google login path for demo video. |
+| 11 | Session wallet re-derive popup on first tx after localStorage clear | Expected InterwovenKit behavior, not a bug. Documented in plan 18 §13.6. |
+| 12 | UX: "Balance & Top-up" + "Mint USDC (broken)" + "Deposit via Bridge" duplicated across circle detail + faucet | Consolidated to single Faucet page (2026-04-25). Removed `BridgeDeposit` component (deleted) and `<BridgeDeposit />` in circle detail. Faucet now has auto-refetching balance + mint with auto-dismissing success indicator + Bridge button. See plan 18 §13.7. |
+| 13 | `/api/gas-faucet` rate limit Map reset on Vercel cold start | Accepted — 1-hour cooldown best-effort. Good enough for 2–3 day demo window. Plan 19 §4.C acknowledged this. |
+
+### 12.4 Production runtime evidence (as of 2026-04-25)
+
+- `getCircleCount()` returned `3` on-chain (3 demo circles live)
+- Gas faucet drip successful via `curl -X POST https://kitpot.vercel.app/api/gas-faucet`
+- Full silent deposit cycle reproduced multiple times in browser UI for circles 0 and 1
+- Pot distribution tested: creator got 297 USDC (cycle 0), user got 297 USDC (cycle 1)
+- Collateral auto-slash for missing deposits verified (cycle 1, member3 didn't explicit-deposit, collateral covered)
+
+### 12.5 Architecture decisions etched during execution
+
+1. **Gas faucet is native Cosmos, not EVM.** `@initia/initia.js` + MnemonicKey + MsgSend is the correct path. Future builders must NOT regress to viem sendTransaction.
+2. **One-stop Faucet page at `/bridge`.** Balance + Mint + Bridge merged. No duplicate UI in circle detail.
+3. **`operator` key doubles as faucet signer.** Single mnemonic, single env var `FAUCET_MNEMONIC`. Isolated faucet key was discussed but not necessary given 1T GAS genesis allocation and 100M raw per drip (~10,000 judges).
+4. **Dokploy uses Dockerfile-only mode with explicit named volume.** Docker-compose.yml exists in repo but NOT used in production. All container orchestration via Dokploy UI.
+5. **Demo cycle duration = 60s (not 120s).** User-configured during circle creation via UI for faster demo iterations. Plan 19 §9 decision was 120s, but 60s proved better for testing rhythm.
+6. **Auto-sign 10-minute duration.** InterwovenKit default. Longer options exist in drawer but 10 min is fine for demo window.
+
+### 12.6 What remains for submission (Bucket G breakdown)
+
+| Task | Owner | Est time |
+|---|---|---|
+| Write `README.md` root: pitch + test steps + addresses | AI | 15 min |
+| Claim `.init` username for user's showcase wallet | User | 5 min |
+| Record demo video 1–3 min (suggest Google login path for seamless UX) | User | 30 min |
+| Upload video to YouTube/Loom public | User | 5 min |
+| Fill `.initia/submission.json.commit_sha` (after final commit) | User | 1 min |
+| Fill `.initia/submission.json.demo_video_url` | User | 1 min |
+| Final `git commit -m "chore: prep submission"` + `git push` | User | 2 min |
+| Submit on DoraHacks (`dorahacks.io/hackathon/initiate/submit`) | User | 10 min |
+
+**Total: ~70 minutes focused. Deadline 2026-04-27 00:00 UTC — plenty of buffer.**
+
+### 12.7 If you are AI builder resuming (after 2026-04-25 session)
+
+- Read plan 18 §13 (production state) AND this §12 before touching anything.
+- Current state is "live demo running, docs pending". Do NOT rewrite provider/tx/faucet logic unless a real bug surfaces.
+- Safe work items: README writing, README polish, plan doc updates, minor UX tweaks.
+- If asked to "fix the `useEffectEvent` error": this comes from `@initia/interwovenkit-react` internal. Not our code. Investigate by bumping SDK to latest or patching with React canary — but test heavily. Not required for submission (error is non-blocking).
+- If user mentions new bugs during demo recording, treat as Bucket G polish. Don't do major refactor.
