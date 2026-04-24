@@ -13,7 +13,7 @@ import { useState } from "react";
 
 export default function FaucetPage() {
   const { address } = useAccount();
-  const { openBridge } = useInterwovenKit();
+  const { openDeposit } = useInterwovenKit();
   const { data: balance, refetch: refetchBalance } = useTokenBalance(CONTRACTS.mockUSDC);
   const { mint, isPending, mintedAmount } = useMintTestUSDC(() => refetchBalance());
   const [amount, setAmount] = useState("1000");
@@ -23,7 +23,9 @@ export default function FaucetPage() {
       <div>
         <h1 className="text-2xl font-bold">Testnet Faucet</h1>
         <p className="mt-2 text-muted-foreground">
-          Mint free test USDC or bridge from Initia L1 to join savings circles on kitpot-2.
+          Get the tokens you need to join savings circles on kitpot-2. USDC for
+          contributions via the mint button below; native GAS for transaction
+          fees via the Interwoven Bridge from Initia L1.
         </p>
       </div>
 
@@ -74,9 +76,12 @@ export default function FaucetPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Bridge from Initia L1</CardTitle>
+          <CardTitle className="text-base">Bridge GAS from Initia L1</CardTitle>
           <CardDescription>
-            Move assets from Initia hub (initiation-2) to the kitpot-2 rollup via Interwoven Bridge.
+            Your wallet needs native GAS on kitpot-2 to pay transaction fees.
+            Bridge <code>uinit</code> from the Initia L1 hub (initiation-2) via
+            the Interwoven Bridge. First-time connects are auto-funded by our
+            faucet API, so this is only needed if you run out.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -84,9 +89,14 @@ export default function FaucetPage() {
             variant="outline"
             className="w-full"
             disabled={!address}
-            onClick={() => openBridge()}
+            onClick={() =>
+              openDeposit({
+                denoms: ["uinit"],
+                chainId: "initiation-2",
+              })
+            }
           >
-            Open Bridge
+            Bridge from Initia L1 →
           </Button>
         </CardContent>
       </Card>

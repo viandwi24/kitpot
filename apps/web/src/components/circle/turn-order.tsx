@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatUSDC } from "@/lib/utils";
+import { InitUsername } from "@/components/username/init-username";
 import type { CircleData, MemberData } from "@/hooks/use-circles";
 
 interface TurnOrderProps {
@@ -38,9 +39,11 @@ export function TurnOrder({ circle, members }: TurnOrderProps) {
                   <span className="text-xs text-muted-foreground">
                     Cycle {(cycleIndex + 1n).toString()}
                   </span>
-                  <span className="text-sm font-medium">
-                    {member.initUsername || member.addr.slice(0, 10) + "..."}
-                  </span>
+                  <InitUsername
+                    address={member.addr}
+                    fallback={member.initUsername || undefined}
+                    className="text-sm font-medium"
+                  />
                 </div>
                 <span className="text-xs">
                   {isCompleted && <span className="text-primary">Received {formatUSDC(payout)} USDC</span>}

@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCyclePaymentStatus } from "@/hooks/use-circle-dashboard";
+import { InitUsername } from "@/components/username/init-username";
 import type { MemberData } from "@/hooks/use-circles";
 
 interface PaymentStatusProps {
@@ -25,9 +26,11 @@ export function PaymentStatus({ circleId, members }: PaymentStatusProps) {
             const paid = paidStatuses[i] ?? false;
             return (
               <div key={member.addr} className="flex items-center justify-between rounded-xl bg-secondary px-4 py-2.5">
-                <span className="text-sm font-medium">
-                  {member.initUsername || member.addr.slice(0, 10) + "..."}
-                </span>
+                <InitUsername
+                  address={member.addr}
+                  fallback={member.initUsername || undefined}
+                  className="text-sm font-medium"
+                />
                 <span className={`text-sm ${paid ? "text-primary" : "text-muted-foreground"}`}>
                   {paid ? "Paid" : "Pending"}
                 </span>

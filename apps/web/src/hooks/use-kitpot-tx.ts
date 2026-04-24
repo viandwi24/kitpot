@@ -32,10 +32,11 @@ function msgCall(
   };
 }
 
-// Minimal fee for submitTxBlock on kitpot-2. Gas price on rollup = 0, so any
-// non-negative amount works. We still need the StdFee shape (required by
-// @initia/interwovenkit's TxParams type). Gas amount is high enough for a
-// MsgCall wrapping an EVM contract call.
+// Minimal fee for submitTxBlock path. Rollup gas_price = 0, so any non-negative
+// amount works. Shape (StdFee) is required by @initia/interwovenkit's TxParams
+// type. SDK @2.8.0 does NOT accept an `autoSign` flag on requestTxBlock (that's
+// a BlockForge blueprint pattern from a different SDK version). We must keep
+// the split: submitTxBlock for auto-sign path, requestTxBlock for drawer path.
 const AUTO_SIGN_FEE = {
   amount: [{ denom: net.nativeSymbol, amount: "0" }],
   gas: "500000",

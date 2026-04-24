@@ -5,6 +5,11 @@ import { getNetworkConfig } from "@/lib/network";
 
 const CHAIN_ID = getNetworkConfig().cosmosChainId;
 
+// Permissions scope is declared at provider level via `enableAutoSign` prop
+// (see providers.tsx). SDK @2.8.0 does NOT accept a second-arg options object
+// on autoSign.enable — passing one is a TypeScript error. Plan 18 §2.2 flags
+// this as a discrepancy vs BlockForge blueprint (different SDK version).
+
 export function AutoSignToggle() {
   const { autoSign, isConnected } = useInterwovenKit();
   if (!isConnected || !autoSign) return null;
@@ -13,8 +18,24 @@ export function AutoSignToggle() {
   const expiresAt = autoSign.expiredAtByChain[CHAIN_ID];
 
   async function toggle() {
-    if (enabled) await autoSign.disable(CHAIN_ID);
-    else await autoSign.enable(CHAIN_ID);
+    if (!autoSign) return;
+    if (enabled) {
+      try {
+        await autoSign.disable(CHAIN_ID);
+      } catch (err) {
+        // Recovery pattern from BlockForge blueprint: client cache may desync
+        // with on-chain grants. Re-enable then clean disable resets state.
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("authorization not found")) {
+          await autoSign.enable(CHAIN_ID);
+          await autoSign.disable(CHAIN_ID);
+          return;
+        }
+        throw err;
+      }
+    } else {
+      await autoSign.enable(CHAIN_ID);
+    }
   }
 
   return (
