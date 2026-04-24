@@ -18,8 +18,9 @@ interface IKitpotAchievements {
 }
 
 /// @title KitpotCircle — Trustless Rotating Savings Circle (ROSCA) on Initia
-/// @notice Full-featured savings circles with auto-signing, reputation gating,
+/// @notice Full-featured savings circles with reputation gating,
 ///         collateral, late penalties, and public discovery.
+///         Auto-signing is handled natively via InterwovenKit (Cosmos authz+feegrant).
 contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
@@ -66,13 +67,6 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         uint256 missedPayments;
     }
 
-    struct Session {
-        uint256 circleId;
-        uint256 maxAmountPerCycle;
-        uint256 expiry;
-        bool active;
-    }
-
     // ============================================================
     //                     STATE VARIABLES
     // ============================================================
@@ -87,9 +81,6 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
     // Payment tracking
     mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasPaid;
     mapping(uint256 => mapping(uint256 => address)) public cycleRecipient;
-
-    // Auto-signing sessions
-    mapping(address => mapping(address => Session)) public sessions;
 
     // Collateral: circleId => member => remaining collateral
     mapping(uint256 => mapping(address => uint256)) public collateralBalance;
@@ -119,10 +110,6 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
     event DepositMade(uint256 indexed circleId, address indexed member, uint256 cycleNumber, uint256 amount);
     event PotDistributed(uint256 indexed circleId, uint256 cycleNumber, address indexed recipient, uint256 potAmount, uint256 feeAmount);
     event CycleAdvanced(uint256 indexed circleId, uint256 newCycleNumber);
-
-    event SessionAuthorized(address indexed member, address indexed operator, uint256 indexed circleId, uint256 maxAmountPerCycle, uint256 expiry);
-    event SessionRevoked(address indexed member, address indexed operator);
-    event DepositOnBehalf(uint256 indexed circleId, address indexed member, address indexed operator, uint256 amount);
 
     event CollateralDeposited(uint256 indexed circleId, address indexed member, uint256 amount);
     event LatePenaltyApplied(uint256 indexed circleId, address indexed member, uint256 penalty);
@@ -448,94 +435,6 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         IERC20(_circles[circleId].tokenAddress).safeTransfer(msg.sender, amount);
 
         emit CollateralReturned(circleId, msg.sender, amount);
-    }
-
-    // ============================================================
-    //                    AUTO-SIGNING SESSIONS
-    // ============================================================
-
-    function authorizeSession(
-        address operator,
-        uint256 circleId,
-        uint256 maxAmountPerCycle,
-        uint256 expiry
-    ) external onlyMember(circleId) {
-        require(operator != address(0), "Invalid operator");
-        require(maxAmountPerCycle >= _circles[circleId].contributionAmount, "Amount below contribution");
-        require(expiry > block.timestamp, "Expiry in the past");
-
-        sessions[msg.sender][operator] = Session({
-            circleId: circleId,
-            maxAmountPerCycle: maxAmountPerCycle,
-            expiry: expiry,
-            active: true
-        });
-
-        emit SessionAuthorized(msg.sender, operator, circleId, maxAmountPerCycle, expiry);
-    }
-
-    function revokeSession(address operator) external {
-        require(sessions[msg.sender][operator].active, "No active session");
-        sessions[msg.sender][operator].active = false;
-        emit SessionRevoked(msg.sender, operator);
-    }
-
-    function depositOnBehalf(uint256 circleId, address member)
-        external
-        nonReentrant
-        whenNotPaused
-        onlyCircleStatus(circleId, CircleStatus.Active)
-    {
-        require(isMember[circleId][member], "Not a member");
-        require(isSessionValid(member, msg.sender, circleId), "Invalid session");
-
-        _depositFor(circleId, member);
-        emit DepositOnBehalf(circleId, member, msg.sender, _circles[circleId].contributionAmount);
-    }
-
-    function batchDeposit(uint256 circleId)
-        external
-        nonReentrant
-        whenNotPaused
-        onlyCircleStatus(circleId, CircleStatus.Active)
-    {
-        Circle storage c = _circles[circleId];
-        Member[] storage members = _circleMembers[circleId];
-
-        for (uint256 i = 0; i < members.length; i++) {
-            address member = members[i].addr;
-            if (hasPaid[circleId][c.currentCycle][member]) continue;
-            if (!isSessionValid(member, msg.sender, circleId)) continue;
-
-            try IERC20(c.tokenAddress).transferFrom(member, address(this), c.contributionAmount) returns (bool success) {
-                if (success) {
-                    hasPaid[circleId][c.currentCycle][member] = true;
-
-                    // Check if late for reputation
-                    uint256 cycleStart = cycleStartTimes[circleId][c.currentCycle];
-                    bool isLate = block.timestamp > (cycleStart + c.gracePeriod);
-                    if (isLate && c.latePenaltyBps > 0) {
-                        uint256 penalty = (c.contributionAmount * c.latePenaltyBps) / 10000;
-                        uint256 available = collateralBalance[circleId][member];
-                        uint256 actualPenalty = penalty > available ? available : penalty;
-                        if (actualPenalty > 0) {
-                            collateralBalance[circleId][member] -= actualPenalty;
-                            accumulatedFees[c.tokenAddress] += actualPenalty;
-                            emit LatePenaltyApplied(circleId, member, actualPenalty);
-                        }
-                    }
-
-                    reputation.recordPayment(member, circleId, c.currentCycle, !isLate);
-                    emit DepositMade(circleId, member, c.currentCycle, c.contributionAmount);
-                    emit DepositOnBehalf(circleId, member, msg.sender, c.contributionAmount);
-                }
-            } catch {}
-        }
-    }
-
-    function isSessionValid(address member, address operator, uint256 circleId) public view returns (bool) {
-        Session storage s = sessions[member][operator];
-        return s.active && s.circleId == circleId && s.expiry > block.timestamp;
     }
 
     // ============================================================

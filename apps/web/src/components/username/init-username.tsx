@@ -1,6 +1,6 @@
 "use client";
 
-import { useInitUsername } from "@/hooks/use-init-username";
+import { useUsernameQuery } from "@initia/interwovenkit-react";
 import { truncateAddress } from "@/lib/utils";
 
 interface InitUsernameProps {
@@ -9,16 +9,17 @@ interface InitUsernameProps {
   className?: string;
 }
 
-/** Displays .init username if available, otherwise truncated address */
+/** Displays .init username if available, otherwise truncated address.
+ *  Uses native InterwovenKit useUsernameQuery hook. */
 export function InitUsername({ address, fallback, className }: InitUsernameProps) {
-  const { name, isLoading } = useInitUsername(address);
+  const { data: username, isLoading } = useUsernameQuery(address);
 
   if (isLoading) {
     return <span className={`animate-pulse text-muted-foreground ${className ?? ""}`}>...</span>;
   }
 
-  if (name) {
-    return <span className={className}>{name}.init</span>;
+  if (username) {
+    return <span className={className}>{username}</span>;
   }
 
   return <span className={className}>{fallback ?? truncateAddress(address)}</span>;

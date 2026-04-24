@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
 import { ConnectButton, useWelcomeModal } from "./connect-button";
 import { WelcomeModal } from "./welcome-modal";
-import { NetworkSwitcher } from "./network-switcher";
+import { AutoSignToggle } from "./auto-sign-toggle";
 import { ThemeToggle } from "./theme-toggle";
 import { LevelBadge } from "@/components/gamification/level-badge";
 import { StreakFlame } from "@/components/gamification/streak-flame";
@@ -109,7 +109,7 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="border-t border-border p-4 space-y-4">
           <NavbarXP />
           <div className="flex items-center gap-2">
-            <NetworkSwitcher />
+            <AutoSignToggle />
           </div>
           <ConnectButton />
           <ThemeToggle />
@@ -165,7 +165,7 @@ export function Header() {
           {/* Desktop right side */}
           <div className="ml-auto hidden items-center gap-3 lg:flex">
             <NavbarXP />
-            <NetworkSwitcher />
+            <AutoSignToggle />
             <ConnectButton />
             <ThemeToggle />
           </div>

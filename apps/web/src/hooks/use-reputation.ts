@@ -1,6 +1,6 @@
 "use client";
 
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useReadContract } from "wagmi";
 import { REPUTATION_ABI } from "@/lib/abi/KitpotReputation";
 import { CONTRACTS } from "@/lib/contracts";
 
@@ -54,19 +54,4 @@ export function useXPProgress(address: `0x${string}` | undefined) {
     args: address ? [address] : undefined,
     query: { enabled: !!address },
   });
-}
-
-export function useClaimDailyQuest() {
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
-
-  function claim() {
-    writeContract({
-      address: CONTRACTS.reputation,
-      abi: REPUTATION_ABI,
-      functionName: "claimDailyQuest",
-    });
-  }
-
-  return { claim, isPending, isConfirming, isSuccess, error };
 }

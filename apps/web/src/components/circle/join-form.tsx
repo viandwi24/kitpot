@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useJoinCircle, useUSDCApproval } from "@/hooks/use-create-circle";
-import { useInitUsername } from "@/hooks/use-init-username";
+import { useKitpotTx } from "@/hooks/use-kitpot-tx";
+import { useInterwovenKit } from "@initia/interwovenkit-react";
+import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { formatUSDC, truncateAddress } from "@/lib/utils";
 import { CONTRACTS } from "@/lib/contracts";
 import type { CircleData } from "@/hooks/use-circles";
@@ -18,50 +19,54 @@ interface JoinFormProps {
 
 export function JoinForm({ circleId, circle }: JoinFormProps) {
   const router = useRouter();
-  const { address } = useAccount();
-  const { name: resolvedName } = useInitUsername(address);
-  const { joinCircle, isPending, isConfirming, isSuccess, error } = useJoinCircle();
-  const {
-    needsApproval,
-    approve,
-    isPending: isApprovePending,
-    isConfirming: isApproveConfirming,
-    isSuccess: isApproveSuccess,
-    refetch: refetchAllowance,
-  } = useUSDCApproval(CONTRACTS.kitpotCircle, circle.contributionAmount);
+  const { address: evmAddress } = useAccount();
+  const { username } = useInterwovenKit();
+  const { joinCircle, approveUSDC, isPending, error } = useKitpotTx();
 
-  const initUsername = resolvedName ? `${resolvedName}.init` : (address ? truncateAddress(address) : "");
-  const autoJoinRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  function handleJoin() {
-    if (needsApproval) {
-      autoJoinRef.current = true;
-      approve();
-    } else {
-      joinCircle(circleId, initUsername);
+  const initUsername = username ? `${username}` : (evmAddress ? truncateAddress(evmAddress) : "");
+
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: CONTRACTS.mockUSDC,
+    abi: MOCK_USDC_ABI,
+    functionName: "allowance",
+    args: evmAddress ? [evmAddress, CONTRACTS.kitpotCircle] : undefined,
+    query: { enabled: !!evmAddress },
+  });
+
+  const needsApproval = allowance !== undefined && allowance < circle.contributionAmount;
+
+  useEffect(() => {
+    if (success) router.push(`/circles/${circleId.toString()}`);
+  }, [success, router, circleId]);
+
+  async function handleJoin() {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (needsApproval) {
+        setStatusMsg("Approving USDC...");
+        await approveUSDC(CONTRACTS.kitpotCircle);
+        await refetchAllowance();
+      }
+      setStatusMsg("Joining circle...");
+      await joinCircle(circleId, initUsername);
+      setSuccess(true);
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Transaction failed");
+    } finally {
+      setSubmitting(false);
+      setStatusMsg("");
     }
   }
 
-  useEffect(() => {
-    if (!isApproveSuccess) return;
-    refetchAllowance().then(() => {
-      if (autoJoinRef.current) {
-        autoJoinRef.current = false;
-        joinCircle(circleId, initUsername);
-      }
-    });
-  }, [isApproveSuccess]);
-
-  useEffect(() => { if (isSuccess) router.push(`/circles/${circleId.toString()}`); }, [isSuccess]);
-
-  const isBusy = isApprovePending || isApproveConfirming || isPending || isConfirming;
-
   function buttonLabel() {
-    if (isApprovePending) return "Waiting for wallet...";
-    if (isApproveConfirming) return "Approving USDC...";
-    if (isPending) return "Waiting for wallet...";
-    if (isConfirming) return "Joining circle...";
-    return "Join Circle";
+    if (!submitting && !isPending) return "Join Circle";
+    return statusMsg || "Processing...";
   }
 
   return (
@@ -92,20 +97,20 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
           </div>
         </div>
 
-        {needsApproval && !isBusy && (
+        {needsApproval && !submitting && (
           <p className="text-xs text-muted-foreground text-center">
             First time: will approve USDC then join automatically.
           </p>
         )}
 
-        {error && (
+        {(error || submitError) && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <p className="font-medium">Transaction failed</p>
-            <p className="mt-1 text-xs opacity-80">{error.message.slice(0, 200)}</p>
+            <p className="mt-1 text-xs opacity-80">{(error?.message || submitError || "").slice(0, 200)}</p>
           </div>
         )}
 
-        <Button onClick={handleJoin} className="w-full" disabled={isBusy || !address}>
+        <Button onClick={handleJoin} className="w-full" disabled={submitting || isPending || !evmAddress}>
           {buttonLabel()}
         </Button>
       </CardContent>

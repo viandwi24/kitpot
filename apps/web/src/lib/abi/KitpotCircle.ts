@@ -107,47 +107,6 @@ export const KITPOT_ABI = [
   },
   {
     "type": "function",
-    "name": "authorizeSession",
-    "inputs": [
-      {
-        "name": "operator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "circleId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "maxAmountPerCycle",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "expiry",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "batchDeposit",
-    "inputs": [
-      {
-        "name": "circleId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "claimCollateral",
     "inputs": [
       {
@@ -308,24 +267,6 @@ export const KITPOT_ABI = [
         "name": "circleId",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "depositOnBehalf",
-    "inputs": [
-      {
-        "name": "circleId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "member",
-        "type": "address",
-        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -728,35 +669,6 @@ export const KITPOT_ABI = [
   },
   {
     "type": "function",
-    "name": "isSessionValid",
-    "inputs": [
-      {
-        "name": "member",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "operator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "circleId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "joinCircle",
     "inputs": [
       {
@@ -872,58 +784,6 @@ export const KITPOT_ABI = [
         "name": "",
         "type": "address",
         "internalType": "contract IKitpotReputation"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "revokeSession",
-    "inputs": [
-      {
-        "name": "operator",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "sessions",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "circleId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "maxAmountPerCycle",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "expiry",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "active",
-        "type": "bool",
-        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -1196,37 +1056,6 @@ export const KITPOT_ABI = [
   },
   {
     "type": "event",
-    "name": "DepositOnBehalf",
-    "inputs": [
-      {
-        "name": "circleId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "member",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "operator",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "FeesWithdrawn",
     "inputs": [
       {
@@ -1403,62 +1232,6 @@ export const KITPOT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SessionAuthorized",
-    "inputs": [
-      {
-        "name": "member",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "operator",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "circleId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "maxAmountPerCycle",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "expiry",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SessionRevoked",
-    "inputs": [
-      {
-        "name": "member",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "operator",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
       }
     ],
     "anonymous": false

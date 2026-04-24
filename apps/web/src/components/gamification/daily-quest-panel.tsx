@@ -3,14 +3,25 @@
 import { useAccount } from "wagmi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useReputation, useClaimDailyQuest } from "@/hooks/use-reputation";
+import { useReputation } from "@/hooks/use-reputation";
+import { useKitpotTx } from "@/hooks/use-kitpot-tx";
 import { StreakFlame } from "./streak-flame";
 import { useState } from "react";
 
 export function DailyQuestPanel() {
   const { address } = useAccount();
   const { data: rep } = useReputation(address);
-  const { claim, isPending, isConfirming, isSuccess } = useClaimDailyQuest();
+  const { claimDailyQuest, isPending } = useKitpotTx();
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  async function claim() {
+    try {
+      await claimDailyQuest();
+      setIsSuccess(true);
+    } catch {
+      // error is surfaced via useKitpotTx().error
+    }
+  }
   const [refCopied, setRefCopied] = useState(false);
 
   const today = Math.floor(Date.now() / 86400000);
@@ -44,10 +55,10 @@ export function DailyQuestPanel() {
           </div>
           <Button
             size="sm"
-            disabled={claimedToday || isPending || isConfirming}
+            disabled={claimedToday || isPending}
             onClick={claim}
           >
-            {claimedToday || isSuccess ? "Claimed" : isPending || isConfirming ? "..." : "+25 XP"}
+            {claimedToday || isSuccess ? "Claimed" : isPending ? "..." : "+25 XP"}
           </Button>
         </div>
 

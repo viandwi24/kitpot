@@ -1,10 +1,12 @@
 "use client";
 
-import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
+import { useState } from "react";
+import { useReadContract } from "wagmi";
+import { maxUint256 } from "viem";
 import { Button } from "@/components/ui/button";
-import { KITPOT_ABI } from "@/lib/abi/KitpotCircle";
 import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { CONTRACTS } from "@/lib/contracts";
+import { useKitpotTx } from "@/hooks/use-kitpot-tx";
 import { useHasPaid } from "@/hooks/use-circle-dashboard";
 import type { CircleData } from "@/hooks/use-circles";
 
@@ -15,9 +17,10 @@ interface DepositButtonProps {
 }
 
 export function DepositButton({ circleId, circle, userAddress }: DepositButtonProps) {
-  const { data: alreadyPaid } = useHasPaid(circleId, circle.currentCycle, userAddress);
+  const { data: alreadyPaid, refetch: refetchPaid } = useHasPaid(circleId, circle.currentCycle, userAddress);
+  const { deposit, approveUSDC, isPending, error } = useKitpotTx();
 
-  const { data: allowance } = useReadContract({
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: CONTRACTS.mockUSDC,
     abi: MOCK_USDC_ABI,
     functionName: "allowance",
@@ -27,55 +30,43 @@ export function DepositButton({ circleId, circle, userAddress }: DepositButtonPr
 
   const needsApproval = allowance !== undefined && allowance < circle.contributionAmount;
 
-  const { writeContract: writeApprove, data: approveHash, isPending: isApproving } = useWriteContract();
-  const { isLoading: isApprovingConfirm } = useWaitForTransactionReceipt({ hash: approveHash });
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
 
-  const { writeContract: writeDeposit, data: depositHash, isPending: isDepositing } = useWriteContract();
-  const { isLoading: isDepositingConfirm, isSuccess: depositConfirmed } = useWaitForTransactionReceipt({ hash: depositHash });
-
-  if (!userAddress || alreadyPaid || depositConfirmed) {
+  if (!userAddress || alreadyPaid || done) {
     return (
       <Button disabled size="sm" className="flex-1">
-        {alreadyPaid || depositConfirmed ? "Already Paid" : "Connect wallet"}
+        {alreadyPaid || done ? "Already Paid" : "Connect wallet"}
       </Button>
     );
   }
 
-  if (needsApproval) {
-    return (
-      <Button
-        size="sm"
-        className="flex-1"
-        disabled={isApproving || isApprovingConfirm}
-        onClick={() =>
-          writeApprove({
-            address: CONTRACTS.mockUSDC,
-            abi: MOCK_USDC_ABI,
-            functionName: "approve",
-            args: [CONTRACTS.kitpotCircle, circle.contributionAmount * circle.totalCycles],
-          })
-        }
-      >
-        {isApproving || isApprovingConfirm ? "Approving..." : "Approve USDC"}
-      </Button>
-    );
+  async function handleDeposit() {
+    if (!userAddress) return;
+    setSubmitting(true);
+    try {
+      if (needsApproval) {
+        setStatusMsg("Approving...");
+        await approveUSDC(CONTRACTS.kitpotCircle, maxUint256);
+        await refetchAllowance();
+      }
+
+      setStatusMsg("Depositing...");
+      await deposit(circleId);
+      await refetchPaid();
+      setDone(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message.slice(0, 200) : "Transaction failed");
+    } finally {
+      setSubmitting(false);
+      setStatusMsg("");
+    }
   }
 
   return (
-    <Button
-      size="sm"
-      className="flex-1"
-      disabled={isDepositing || isDepositingConfirm}
-      onClick={() =>
-        writeDeposit({
-          address: CONTRACTS.kitpotCircle,
-          abi: KITPOT_ABI,
-          functionName: "deposit",
-          args: [circleId],
-        })
-      }
-    >
-      {isDepositing || isDepositingConfirm ? "Depositing..." : "Pay Contribution"}
+    <Button size="sm" className="flex-1" disabled={submitting || isPending} onClick={handleDeposit}>
+      {submitting || isPending ? (statusMsg || "Processing...") : "Pay Contribution"}
     </Button>
   );
 }

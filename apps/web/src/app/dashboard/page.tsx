@@ -7,7 +7,6 @@ import { formatUnits } from "viem";
 import { useReputation, TIER_NAMES, TIER_COLORS, LEVEL_NAMES, LEVEL_XP_THRESHOLDS } from "@/hooks/use-reputation";
 import { useCircleCount, useMyCircles } from "@/hooks/use-circles";
 import { useAchievementTokenIds, ACHIEVEMENT_NAMES, ACHIEVEMENT_ICONS } from "@/hooks/use-achievements";
-import { useClaimDailyQuest } from "@/hooks/use-reputation";
 import { LevelBadge } from "@/components/gamification/level-badge";
 import { StreakFlame } from "@/components/gamification/streak-flame";
 import { DailyQuestPanel } from "@/components/gamification/daily-quest-panel";

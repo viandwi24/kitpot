@@ -33,14 +33,40 @@ if [ ! -f "$MINITIA_HOME/config/genesis.json" ]; then
     sleep 3
 fi
 
-# ── Patch app.toml for public access ─────────────────────────────────────────
+# ── Patch app.toml for public access + CORS ─────────────────────────────────
+# InterwovenKit (browser) talks to REST :1317 and Cosmos RPC :26657. Both must:
+#   (a) listen on 0.0.0.0 (not localhost) so Traefik/Nginx can reach them
+#   (b) allow cross-origin requests from the Vercel frontend
+#
+# EVM JSON-RPC :8545 and WS :8546 only need the bind patch — CORS on EVM RPC
+# is typically handled via reverse-proxy headers, and Ethereum-style JSON-RPC
+# calls are preflight-exempt when using application/json.
 if [ -f "$MINITIA_HOME/config/app.toml" ]; then
+    # EVM JSON-RPC + WS bind to 0.0.0.0
     sed -i 's|address = "127.0.0.1:8545"|address = "0.0.0.0:8545"|g' "$MINITIA_HOME/config/app.toml"
     sed -i 's|address = "127.0.0.1:8546"|address = "0.0.0.0:8546"|g' "$MINITIA_HOME/config/app.toml"
+
+    # Cosmos REST API — enable it (default: disabled), bind to 0.0.0.0, allow CORS.
+    # Using sed range addressing to only touch keys within the [api] section,
+    # because "enable = false" and "enabled-unsafe-cors = false" also appear
+    # in [grpc], [grpc-web], [rosetta], [telemetry], [state-sync.snapshots], etc.
+    sed -i '/^\[api\]/,/^\[/ s|^enable = false|enable = true|' "$MINITIA_HOME/config/app.toml"
+    sed -i '/^\[api\]/,/^\[/ s|address = "tcp://localhost:1317"|address = "tcp://0.0.0.0:1317"|' "$MINITIA_HOME/config/app.toml"
+    sed -i '/^\[api\]/,/^\[/ s|address = "tcp://127.0.0.1:1317"|address = "tcp://0.0.0.0:1317"|' "$MINITIA_HOME/config/app.toml"
+    sed -i '/^\[api\]/,/^\[/ s|^enabled-unsafe-cors = false|enabled-unsafe-cors = true|' "$MINITIA_HOME/config/app.toml"
 fi
+
 if [ -f "$MINITIA_HOME/config/config.toml" ]; then
+    # Cosmos RPC :26657 — bind + CORS
     sed -i 's|laddr = "tcp://127.0.0.1:26657"|laddr = "tcp://0.0.0.0:26657"|g' "$MINITIA_HOME/config/config.toml"
+    sed -i 's|cors_allowed_origins = \[\]|cors_allowed_origins = ["*"]|g' "$MINITIA_HOME/config/config.toml"
 fi
+
+echo "[kitpot] Config patched:"
+echo "  - EVM JSON-RPC  :8545  bind 0.0.0.0"
+echo "  - EVM WebSocket :8546  bind 0.0.0.0"
+echo "  - Cosmos RPC    :26657 bind 0.0.0.0, CORS enabled"
+echo "  - Cosmos REST   :1317  enabled, bind 0.0.0.0, CORS enabled"
 
 # ── Start minitiad rollup node ────────────────────────────────────────────────
 echo "[kitpot] Starting minitiad..."

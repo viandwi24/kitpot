@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCreateCircle, useUSDCApproval } from "@/hooks/use-create-circle";
+import { useKitpotTx } from "@/hooks/use-kitpot-tx";
 import { parseUnits } from "viem";
+import { useReadContract } from "wagmi";
 import { CONTRACTS, USDC_DECIMALS } from "@/lib/contracts";
+import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
+import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { useAccount } from "wagmi";
-import { useInitUsername } from "@/hooks/use-init-username";
 import { truncateAddress } from "@/lib/utils";
 
 const CYCLE_PRESETS = [
@@ -30,16 +32,13 @@ const TIER_OPTIONS = [
 
 export function CreateCircleForm() {
   const router = useRouter();
-  const { address } = useAccount();
-  const { name: resolvedName } = useInitUsername(address);
-  const { createCircleAsync, isPending, isConfirming, isSuccess, error } = useCreateCircle();
-  const [contributionAmount, setContributionAmount] = useState("100");
-  const collateralNeeded = parseUnits(contributionAmount || "0", USDC_DECIMALS);
-  const { needsApproval, approveAsync, refetch: refetchAllowance } = useUSDCApproval(CONTRACTS.kitpotCircle, collateralNeeded);
+  const { address: evmAddress } = useAccount();
+  const { username } = useInterwovenKit();
+  const { createCircle, approveUSDC, isPending, error } = useKitpotTx();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const initUsername = resolvedName ? `${resolvedName}.init` : (address ? truncateAddress(address) : "");
+  const [contributionAmount, setContributionAmount] = useState("100");
   const [maxMembers, setMaxMembers] = useState(3);
   const [cycleDuration, setCycleDuration] = useState(60);
   const [gracePeriod, setGracePeriod] = useState(30);
@@ -49,10 +48,20 @@ export function CreateCircleForm() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  function getParams() {
-    return { name, description, contributionAmount, maxMembers, cycleDuration, gracePeriod, latePenaltyBps: 500, isPublic, minimumTier, initUsername };
-  }
+  const collateralNeeded = parseUnits(contributionAmount || "0", USDC_DECIMALS);
+  const initUsername = username ? `${username}` : (evmAddress ? truncateAddress(evmAddress) : "");
+
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: CONTRACTS.mockUSDC,
+    abi: MOCK_USDC_ABI,
+    functionName: "allowance",
+    args: evmAddress ? [evmAddress, CONTRACTS.kitpotCircle] : undefined,
+    query: { enabled: !!evmAddress },
+  });
+
+  const needsApproval = allowance !== undefined && allowance < collateralNeeded;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,10 +69,22 @@ export function CreateCircleForm() {
     setSubmitError(null);
     try {
       if (needsApproval) {
-        await approveAsync();
+        await approveUSDC(CONTRACTS.kitpotCircle);
         await refetchAllowance();
       }
-      await createCircleAsync(getParams());
+      await createCircle({
+        name,
+        description,
+        contributionAmount: collateralNeeded,
+        maxMembers: BigInt(maxMembers),
+        cycleDuration: BigInt(cycleDuration),
+        gracePeriod: BigInt(gracePeriod),
+        latePenaltyBps: 500n,
+        isPublic,
+        minimumTier,
+        initUsername,
+      });
+      setSuccess(true);
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : "Transaction failed");
     } finally {
@@ -71,14 +92,15 @@ export function CreateCircleForm() {
     }
   }
 
-  useEffect(() => { if (isSuccess) router.push("/circles"); }, [isSuccess]);
+  useEffect(() => {
+    if (success) router.push("/circles");
+  }, [success, router]);
 
-  const isBusy = submitting || isPending || isConfirming;
+  const isBusy = submitting || isPending;
 
   function buttonLabel() {
-    if (isPending) return "Waiting for wallet...";
-    if (isConfirming) return "Creating circle...";
-    if (submitting) return needsApproval ? "Approving USDC..." : "Creating circle...";
+    if (submitting && needsApproval) return "Approving USDC...";
+    if (submitting || isPending) return "Creating circle...";
     if (needsApproval) return "Approve USDC & Create";
     return "Create Circle";
   }

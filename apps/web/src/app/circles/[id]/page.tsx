@@ -11,8 +11,6 @@ import { PaymentStatus } from "@/components/circle/payment-status";
 import { TurnOrder } from "@/components/circle/turn-order";
 import { CircleHistory } from "@/components/circle/circle-history";
 import { InviteForm } from "@/components/circle/invite-form";
-import { AutoSigningSetup } from "@/components/circle/auto-signing-setup";
-import { BatchDepositTrigger } from "@/components/circle/batch-deposit-trigger";
 import { BridgeDeposit } from "@/components/bridge/bridge-deposit";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -74,8 +72,10 @@ export default function CircleDetailPage({ params }: { params: Promise<{ id: str
         <>
           <CurrentCycle circle={circle} members={memberList} circleId={circleId} userAddress={address} />
           <PaymentStatus circleId={circleId} members={memberList} />
-          <AutoSigningSetup circleId={circleId} circle={circle} />
-          <BatchDepositTrigger circleId={circleId} />
+          <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 text-sm text-muted-foreground">
+            Enable <strong>auto-sign</strong> in the header to pay cycle deposits without manual confirmation.
+            InterwovenKit handles session keys natively via Cosmos authz + feegrant.
+          </div>
           <BridgeDeposit />
         </>
       )}

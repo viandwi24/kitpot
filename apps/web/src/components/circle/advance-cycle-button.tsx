@@ -1,9 +1,7 @@
 "use client";
 
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { Button } from "@/components/ui/button";
-import { KITPOT_ABI } from "@/lib/abi/KitpotCircle";
-import { CONTRACTS } from "@/lib/contracts";
+import { useKitpotTx } from "@/hooks/use-kitpot-tx";
 
 interface AdvanceCycleButtonProps {
   circleId: bigint;
@@ -12,10 +10,9 @@ interface AdvanceCycleButtonProps {
 }
 
 export function AdvanceCycleButton({ circleId, allPaid, canAdvance }: AdvanceCycleButtonProps) {
-  const { writeContract, data: hash, isPending } = useWriteContract();
-  const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash });
+  const { advanceCycle, isPending } = useKitpotTx();
 
-  const disabled = !allPaid || !canAdvance || isPending || isConfirming;
+  const disabled = !allPaid || !canAdvance || isPending;
 
   return (
     <Button
@@ -23,16 +20,9 @@ export function AdvanceCycleButton({ circleId, allPaid, canAdvance }: AdvanceCyc
       size="sm"
       className="flex-1"
       disabled={disabled}
-      onClick={() =>
-        writeContract({
-          address: CONTRACTS.kitpotCircle,
-          abi: KITPOT_ABI,
-          functionName: "advanceCycle",
-          args: [circleId],
-        })
-      }
+      onClick={() => advanceCycle(circleId)}
     >
-      {isPending || isConfirming
+      {isPending
         ? "Distributing..."
         : !allPaid
         ? "Waiting for all payments"

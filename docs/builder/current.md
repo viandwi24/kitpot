@@ -4,77 +4,56 @@
 
 ---
 
-## Phase (2026-04-23) — Infra + Demo Polish [ACTIVE]
+## HANDOFF — Plan 18 fully code-complete (2026-04-24)
 
-All contract and frontend features built and deployed. Focus now is demo readiness and VPS deployment.
+All phases (1–6) and all post-audit gaps (G1–G3) are resolved. **Zero `useWriteContract` remaining in the codebase.** All transactions route through `useKitpotTx` → `requestTxBlock`/`submitTxBlock` with `/minievm.evm.v1.MsgCall`.
 
-### What is LIVE (deployed on kitpot-2 testnet)
+### What the user needs to do now (R1–R7):
 
-**Contracts on kitpot-2 (Chain ID: 64146729809684):**
-- `KitpotCircle`: `0xecb3a0F9381FDA494C3891337103260503411621`
-- `KitpotReputation`: `0xf10267F194f8E09F9f2aa8Fc435e7A2Dac58172a`
-- `KitpotAchievements`: `0xC421652EC7efBad98dDF42646055e531a28f61Ea`
-- `MockUSDC`: `0xe5e7064B389a5d4ACE1d93b3C5E36bF27b4274Fa`
+1. **R1 — Start local rollup:** `weave rollup start -d`
+2. **R2 — Confirm gas denom:** `minitiad query bank total --node http://localhost:26657` — if not `GAS`, update `NEXT_PUBLIC_KITPOT_NATIVE_SYMBOL` in `.env.local`
+3. **R3 — Redeploy contracts** (session layer removed, new storage layout):
+   ```bash
+   cd contracts
+   forge test -vv
+   forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
+   ```
+4. **R4 — Fill `.env.local`** from `.env.example`, set contract addresses from deploy output
+5. **R5 — Smoke test:** `bun dev` → connect wallet → create circle → join → deposit → toggle auto-sign → advanceCycle
+6. **R6 — Record demo video** (1–3 min, script in plan §10)
+7. **R7 — Final commit + fill `.initia/submission.json`:**
+   - `commit_sha` ← `git rev-parse HEAD`
+   - `deployed_address` ← KitpotCircle address from R3
+   - `demo_video_url` ← YouTube/Loom link from R6
 
-**Frontend (Vercel):** https://kitpot.vercel.app (currently points to localhost RPC, needs VPS update)
-
-**Infrastructure (`infra/dokploy/`):**
-- `Dockerfile` — single image: minitiad + opinitd, works for arm64 and amd64
-- `entrypoint.sh` — starts minitiad, waits for EVM RPC, optionally starts OPinit bots
-- `docker-compose.yml` — local Mac M1/M2 testing only
-- `.env.example` — all required env vars documented
-- Tested locally: minitiad produces blocks, OPinit executor submitting batches
-
-### What is PENDING (blockers for submission)
-
-| Item | Status | Notes |
-|------|--------|-------|
-| VPS deployment | ❌ Not done | rsync ~/.minitia → VPS, deploy via Dokploy |
-| Public RPC domain | ❌ Not done | Traefik domain → port 8545 |
-| Vercel env update | ❌ Not done | `NEXT_PUBLIC_TESTNET_RPC_URL` → VPS domain, `NEXT_PUBLIC_DEFAULT_NETWORK=testnet` |
-| Demo video | ❌ Not done | `video_url` in submission.json still TODO |
-| DoraHacks description | ❌ Not done | Target 8k+ chars |
-
-### Next actions (in order)
-1. Deploy VPS → get public RPC domain
-2. Update Vercel env → redeploy
-3. Record demo video
-4. Write DoraHacks description
-5. Submit
+### Audit results (all clean):
+- `grep useWriteContract apps/web/src` → **ZERO matches**
+- `grep authorizeSession|revokeSession|... contracts/src apps/web/src` → **ZERO matches**
+- `grep useInitUsername|getUsername|... apps/web/src` → **ZERO matches**
+- `grep window.ethereum|createWalletClient|... apps/web/src` → **ZERO matches**
+- `grep use-create-circle|use-auto-signing|use-init-username apps/web/src` → **ZERO matches**
 
 ---
 
-## Phase (2026-04-23) — Feature Audit [DONE]
+## Post-audit gaps resolved (2026-04-24)
 
-Compared Kitpot vs Leticia and Drip. Key findings:
+### G1 — advanceCycle migrated to useKitpotTx [DONE]
+- Added `advanceCycle` method to `apps/web/src/hooks/use-kitpot-tx.ts`
+- Rewrote `apps/web/src/components/circle/advance-cycle-button.tsx` — removed `useWriteContract`/`useWaitForTransactionReceipt`
 
-- **Bridge/Interwoven Bridge**: NOT implemented. Renamed `/bridge` page to Faucet (mint MockUSDC only). Neither Drip nor Leticia have bridge UI. Bridge is NOT a scoring differentiator — removed broken bridge button that showed `alert()`.
-- **Auto-signing**: UI exists (`/circles/[id]` → auto-sign setup). Not verified working on testnet yet.
-- **MockUSDC faucet**: Works. Judge can mint USDC directly from `/bridge` (Faucet) page.
+### G2 — claimDailyQuest migrated to useKitpotTx [DONE]
+- `KitpotReputation.claimDailyQuest()` is user-triggered (external, no modifier) → must migrate
+- Added `claimDailyQuest` method to `use-kitpot-tx.ts`
+- Removed `useClaimDailyQuest` from `use-reputation.ts`
+- Updated `daily-quest-panel.tsx` to use `useKitpotTx().claimDailyQuest`
+- Removed dead `useClaimDailyQuest` import from `dashboard/page.tsx`
+
+### G3 — MockUSDC.mint migrated to useKitpotTx [DONE]
+- Added `mintTestUSDC` method to `use-kitpot-tx.ts`
+- Rewrote `use-bridge.ts` — removed `useWriteContract`/`useWaitForTransactionReceipt`
 
 ---
 
-## Phase (2026-04-21–23) — All Features Built [DONE]
+## Phase (2026-04-24) — Plan 18: Align to Hackathon [DONE — code only]
 
-### Plans executed
-| Plan | Title | Status |
-|------|-------|--------|
-| 01-09 | Core contracts + frontend | DONE |
-| 10 | Reputation & Trust Score | DONE |
-| 11 | Soulbound Achievement NFTs | DONE |
-| 12 | Late Payment & Collateral | DONE |
-| 13 | Public Circle Discovery | DONE |
-| 14 | Comprehensive Tests | DONE |
-| 15 | Submission Polish (README, submission.json) | DONE |
-| 16 | Gamification expansion | DONE |
-
-### Key files
-- `contracts/src/KitpotCircle.sol` — core contract
-- `contracts/src/KitpotReputation.sol` — reputation + XP
-- `contracts/src/KitpotAchievements.sol` — soulbound NFT badges
-- `apps/web/src/app/circles/[id]/page.tsx` — circle dashboard
-- `apps/web/src/app/discover/page.tsx` — public circle discovery
-- `apps/web/src/app/leaderboard/page.tsx` — leaderboard
-- `apps/web/src/app/bridge/page.tsx` — faucet (mint MockUSDC only, no bridge)
-- `apps/web/src/components/layout/header.tsx` — nav: Discover, Leaderboard, Faucet, Dashboard, Circles, Badges
-- `infra/dokploy/Dockerfile` — VPS deployment image
+(see changelog for full details)

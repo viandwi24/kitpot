@@ -5,8 +5,9 @@ const network = getNetworkConfig();
 export const CONTRACTS = network.contracts;
 
 export const CHAIN_CONFIG = {
-  rpcUrl: network.rpcUrl,
-  chainId: network.chainId,
+  jsonRpc: network.jsonRpc,
+  evmChainId: network.evmChainId,
+  cosmosChainId: network.cosmosChainId,
 } as const;
 
 export const USDC_DECIMALS = 6;

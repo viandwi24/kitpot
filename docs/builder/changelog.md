@@ -4,6 +4,57 @@
 
 ---
 
+## 2026-04-24 — Plan 18 §12: Post-audit gap fixes (G1–G3)
+
+Migrated all remaining `useWriteContract` callsites to `useKitpotTx` (InterwovenKit `requestTxBlock`/`submitTxBlock`). Zero `useWriteContract` remaining in codebase.
+
+### G1 — advanceCycle (HIGH)
+Added `advanceCycle` to `use-kitpot-tx.ts`. Rewrote `advance-cycle-button.tsx` — removed wagmi write imports.
+**Files:** `apps/web/src/hooks/use-kitpot-tx.ts`, `apps/web/src/components/circle/advance-cycle-button.tsx`
+
+### G2 — claimDailyQuest (MEDIUM)
+`claimDailyQuest()` in `KitpotReputation.sol` is user-triggered (external, no modifier) → migrated.
+Added `claimDailyQuest` to `use-kitpot-tx.ts`. Removed `useClaimDailyQuest` export from `use-reputation.ts`. Updated `daily-quest-panel.tsx` and removed dead import from `dashboard/page.tsx`.
+**Files:** `use-kitpot-tx.ts`, `use-reputation.ts`, `daily-quest-panel.tsx`, `dashboard/page.tsx`
+
+### G3 — MockUSDC.mint (LOW)
+Added `mintTestUSDC` to `use-kitpot-tx.ts`. Rewrote `use-bridge.ts` — removed wagmi write imports.
+**Files:** `use-kitpot-tx.ts`, `use-bridge.ts`
+
+---
+
+## 2026-04-24 — Plan 18: Align to INITIATE Hackathon (code-only)
+
+Executed 6 phases to fix 8 hallucinations/misalignments identified in the codebase audit. All changes are code-only — no builds, tests, or deployments run.
+
+### Phase 1 — Provider fix (H6 + H7)
+Rewrote `providers.tsx` with `customChain`, `customChains`, `defaultChainId`, `enableAutoSign`. Replaced dual local/testnet network system with single env-driven config. Deleted `network-switcher.tsx`.
+**Files:** `providers.tsx`, `network.ts`, `contracts.ts`, `.env.example`, deleted `network-switcher.tsx`
+
+### Phase 2 — Contract session removal (H1)
+Removed custom Solidity session-key layer (struct, mapping, 3 events, 5 functions). Removed 8 session tests. Cleaned ABI.
+**Files:** `KitpotCircle.sol`, `KitpotCircle.t.sol`, `KitpotCircle.ts` (ABI)
+
+### Phase 3 — InterwovenKit tx hook (H5)
+Created `use-kitpot-tx.ts` using `requestTxBlock`/`submitTxBlock` with `/minievm.evm.v1.MsgCall`. Rewrote all tx-sending components. Deleted `use-create-circle.ts`.
+**Files:** created `use-kitpot-tx.ts`, rewrote `create-circle-form.tsx`, `join-form.tsx`, `deposit-button.tsx`, deleted `use-create-circle.ts`
+
+### Phase 4 — Username cleanup (H3 + H4)
+Deleted custom REST username client and fake-username modal. Replaced with native `useUsernameQuery` from InterwovenKit.
+**Files:** deleted `username.ts`, `use-init-username.ts`, `username-setup-modal.tsx`, rewrote `init-username.tsx`, `connect-button.tsx`
+
+### Phase 5 — Auto-sign replacement (H2)
+Deleted custom auto-signing UI. Created `auto-sign-toggle.tsx` using native `autoSign.enable`/`disable`. Mounted in header.
+**Files:** deleted `use-auto-signing.ts`, `auto-signing-setup.tsx`, `batch-deposit-trigger.tsx`, created `auto-sign-toggle.tsx`, updated `header.tsx`, `circles/[id]/page.tsx`
+
+### Phase 6 — Submission + README (H8)
+Overwrote `.initia/submission.json` with correct schema. Rewrote `README.md`.
+**Files:** `.initia/submission.json`, `README.md`
+
+**Deploy notes:** Contract must be redeployed (storage layout changed). New `.env.local` required (new env var names).
+
+---
+
 ## 2026-04-23 — Docs sync: full state update
 
 Updated all builder docs to reflect actual current state. Fixed stale references to kitpot-1 (now kitpot-2), documented bridge removal decision, marked all completed tasks, updated pending items.

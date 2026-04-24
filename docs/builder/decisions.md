@@ -4,6 +4,46 @@
 
 ---
 
+## ADR-007 — Remove NetworkSwitcher, single env-driven config
+
+**Date:** 2026-04-24
+
+**Context:** The old network system had a dual local/testnet switcher with localStorage overrides. With the move to Initia-native transaction flow (Cosmos RPC + REST required), the Anvil-based local network no longer works. All transactions must go through `requestTxBlock`/`submitTxBlock` which need a real Initia rollup (weave CLI or VPS).
+
+**Decision:** Replace dual network system with single env-driven config. One set of env vars, no runtime switching. To switch networks, change `.env.local` and restart.
+
+**Consequences:** Simpler codebase. No localStorage config drift. Users must use `weave rollup start` for local dev, not `anvil`.
+
+---
+
+## ADR-006 — All tx via requestTxBlock/submitTxBlock, no window.ethereum
+
+**Date:** 2026-04-24
+
+**Context:** DoraHacks INITIATE rules require "InterwovenKit for wallet connection and/or transaction handling." Using `window.ethereum` / `wagmi.writeContract` bypasses InterwovenKit and breaks auto-signing integration.
+
+**Decision:** Route ALL write transactions through `requestTxBlock` (manual confirm) or `submitTxBlock` (auto-sign mode) with `/minievm.evm.v1.MsgCall` message type. Single hook `use-kitpot-tx.ts` wraps all contract calls.
+
+**Consequences:** Satisfies eligibility. Auto-signing works natively. Cannot use `wagmi.useWriteContract` for core flows (deposit/create/join). Read-only wagmi hooks (useReadContract) are still fine.
+
+---
+
+## ADR-005 — Remove custom Solidity session layer, use native autoSign
+
+**Date:** 2026-04-24
+
+**Context:** The contract had a full homegrown session-key system (`authorizeSession`, `revokeSession`, `depositOnBehalf`, `batchDeposit`). This duplicates Initia's native auto-signing (Cosmos `x/authz` + `x/feegrant`), exposed via `InterwovenKitProvider.enableAutoSign` and `autoSign.enable(chainId)`.
+
+**Decision:** Strip the custom session layer from `KitpotCircle.sol`. Use InterwovenKit's `autoSign` drawer. Each member enables auto-sign once; subsequent `deposit()` calls go via `submitTxBlock` silently.
+
+**Consequences:**
+- Contract is simpler (~90 fewer lines of Solidity)
+- Requires contract redeployment (storage layout change)
+- Auto-signing is real Cosmos-level authz+feegrant — exactly what judges look for
+- Lost: batch deposit in single tx (now each member's deposit is individual). Acceptable for MVP.
+
+---
+
 ## ADR-004 — Bridge UI removed, replaced with Faucet
 
 **Date:** 2026-04-23
