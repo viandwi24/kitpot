@@ -1,3 +1,5 @@
+// TODO: DEPRECATED — Remove after contract redeploy + UI migration to ClaimPotButton / SubstituteClaimButton.
+// Kept for backward compat with old deployed contract.
 "use client";
 
 import { Button } from "@/components/ui/button";

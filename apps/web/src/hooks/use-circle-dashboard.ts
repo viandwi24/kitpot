@@ -33,6 +33,26 @@ export function useAllMembersPaid(circleId: bigint) {
   });
 }
 
+export interface CycleTiming {
+  cycleStart: bigint;
+  cycleEnd: bigint;
+  dormantDeadline: bigint;
+  nowTs: bigint;
+  canRecipientClaim: boolean;
+  canSubstituteClaim: boolean;
+  recipient: `0x${string}`;
+}
+
+export function useCycleTiming(circleId: bigint) {
+  return useReadContract({
+    address: CONTRACTS.kitpotCircle,
+    abi: KITPOT_ABI,
+    functionName: "getCycleTiming",
+    args: [circleId],
+    query: { refetchInterval: 3000 },
+  });
+}
+
 export function useHasPaid(circleId: bigint, cycle: bigint, address: `0x${string}` | undefined) {
   return useReadContract({
     address: CONTRACTS.kitpotCircle,

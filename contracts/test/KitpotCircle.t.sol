@@ -20,7 +20,7 @@ contract KitpotCircleTest is Test {
     address public charlie = makeAddr("charlie");
 
     uint256 public constant CONTRIBUTION = 100e6;
-    uint256 public constant CYCLE_DURATION = 60;
+    uint256 public constant CYCLE_DURATION = 120;
     uint256 public constant GRACE_PERIOD = 30;
     uint256 public constant LATE_PENALTY_BPS = 500;
     uint256 public constant T0 = 10_000; // base timestamp
@@ -69,23 +69,23 @@ contract KitpotCircleTest is Test {
     }
 
     function test_createCircle_revert_tooFewMembers() public {
-        vm.expectRevert("Members: 3-20");
+        vm.expectRevert("Members 3-20");
         _raw(2);
     }
 
     function test_createCircle_revert_tooManyMembers() public {
-        vm.expectRevert("Members: 3-20");
+        vm.expectRevert("Members 3-20");
         _raw(21);
     }
 
     function test_createCircle_revert_zeroAmount() public {
-        vm.expectRevert("Amount must be > 0");
+        vm.expectRevert("Contribution > 0");
         kitpot.createCircle("X","",address(usdc),0,3,CYCLE_DURATION,GRACE_PERIOD,LATE_PENALTY_BPS,false,IKitpotReputation.TrustTier.Unranked,"test.init");
     }
 
     function test_createCircle_revert_graceExceedsCycle() public {
-        vm.expectRevert("Grace > cycle");
-        kitpot.createCircle("X","",address(usdc),CONTRIBUTION,3,60,120,LATE_PENALTY_BPS,false,IKitpotReputation.TrustTier.Unranked,"test.init");
+        vm.expectRevert("Grace must be < cycle");
+        kitpot.createCircle("X","",address(usdc),CONTRIBUTION,3,120,120,LATE_PENALTY_BPS,false,IKitpotReputation.TrustTier.Unranked,"test.init");
     }
 
     // ── JOIN ──

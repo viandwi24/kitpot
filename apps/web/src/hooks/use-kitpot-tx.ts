@@ -169,6 +169,29 @@ export function useKitpotTx() {
         ),
       ]),
 
+    claimPot: (circleId: bigint) =>
+      send([
+        msgCall(
+          CONTRACTS.kitpotCircle,
+          KITPOT_ABI as Abi,
+          "claimPot",
+          [circleId],
+          initiaAddress!,
+        ),
+      ]),
+
+    substituteClaim: (circleId: bigint) =>
+      send([
+        msgCall(
+          CONTRACTS.kitpotCircle,
+          KITPOT_ABI as Abi,
+          "substituteClaim",
+          [circleId],
+          initiaAddress!,
+        ),
+      ]),
+
+    /** @deprecated Use claimPot() or substituteClaim() */
     advanceCycle: (circleId: bigint) =>
       send([
         msgCall(

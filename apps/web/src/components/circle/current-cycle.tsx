@@ -2,10 +2,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCountdown } from "@/hooks/use-countdown";
-import { useCurrentCycleInfo } from "@/hooks/use-circle-dashboard";
+import { useCurrentCycleInfo, useCycleTiming } from "@/hooks/use-circle-dashboard";
 import { formatUSDC } from "@/lib/utils";
 import { DepositButton } from "./deposit-button";
-import { AdvanceCycleButton } from "./advance-cycle-button";
+import { ClaimPotButton } from "./claim-pot-button";
+import { SubstituteClaimButton } from "./substitute-claim-button";
+import { CycleCountdown } from "./cycle-countdown";
 import { getTokenSymbol, type CircleData, type MemberData } from "@/hooks/use-circles";
 
 interface CurrentCycleProps {
@@ -17,17 +19,24 @@ interface CurrentCycleProps {
 
 export function CurrentCycle({ circle, members, circleId, userAddress }: CurrentCycleProps) {
   const { data: cycleInfo } = useCurrentCycleInfo(circleId);
+  const { data: timing } = useCycleTiming(circleId);
 
   const cycleEndTime = cycleInfo ? Number(cycleInfo[2]) : 0;
   const recipient = cycleInfo ? cycleInfo[3] : undefined;
   const allPaid = cycleInfo ? cycleInfo[4] : false;
-  const canAdvance = cycleInfo ? cycleInfo[5] : false;
 
   const { formatted: countdown, isExpired } = useCountdown(cycleEndTime);
 
   const recipientMember = members.find((m) => m.addr === recipient);
   const totalPot = circle.contributionAmount * circle.maxMembers;
   const fee = totalPot / 100n;
+  const payout = totalPot - fee;
+
+  // Timing state from contract view
+  const canRecipientClaim = timing ? (timing as { canRecipientClaim: boolean }).canRecipientClaim : false;
+  const canSubstituteClaim = timing ? (timing as { canSubstituteClaim: boolean }).canSubstituteClaim : false;
+  const dormantDeadline = timing ? Number((timing as { dormantDeadline: bigint }).dormantDeadline) : 0;
+  const isRecipient = userAddress && recipient && userAddress.toLowerCase() === recipient.toLowerCase();
 
   return (
     <Card>
@@ -54,8 +63,27 @@ export function CurrentCycle({ circle, members, circleId, userAddress }: Current
 
         <div className="flex gap-2">
           <DepositButton circleId={circleId} circle={circle} userAddress={userAddress} />
-          <AdvanceCycleButton circleId={circleId} allPaid={allPaid} canAdvance={canAdvance} />
         </div>
+
+        {/* Claim state machine */}
+        {canSubstituteClaim ? (
+          <SubstituteClaimButton
+            circleId={circleId}
+            potAmount={payout}
+            tokenAddress={circle.tokenAddress as `0x${string}`}
+          />
+        ) : canRecipientClaim && isRecipient ? (
+          <ClaimPotButton
+            circleId={circleId}
+            potAmount={payout}
+            tokenAddress={circle.tokenAddress as `0x${string}`}
+          />
+        ) : canRecipientClaim && !isRecipient ? (
+          <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-sm text-yellow-200/80">
+            <p className="font-medium">Waiting for recipient to claim</p>
+            <CycleCountdown deadlineTs={dormantDeadline} label="Substitute claim opens in" />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

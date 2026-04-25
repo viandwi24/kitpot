@@ -12,6 +12,16 @@ const KNOWN_REVERTS: Array<{ pattern: string; title: string; hint: string; actio
   { pattern: "Already paid this cycle", title: "Already paid", hint: "You already made your payment for this cycle." },
   { pattern: "Penalty too high", title: "Invalid penalty", hint: "The late penalty percentage is too high." },
   { pattern: "Circle full", title: "Circle full", hint: "This circle has reached its maximum number of members." },
+  { pattern: "Not your turn", title: "Not your turn", hint: "Only the current cycle's recipient can claim. Wait for your turn." },
+  { pattern: "Wait for dormant grace", title: "Dormant grace period", hint: "Recipient still has time to claim. Substitute claim opens after the dormant grace period." },
+  { pattern: "Cycle not started", title: "Cycle not started", hint: "This cycle has not started yet." },
+  { pattern: "Grace must be < cycle", title: "Invalid grace period", hint: "Grace period must be shorter than the cycle duration." },
+  { pattern: "Grace must be > 0", title: "Invalid grace period", hint: "Grace period must be greater than zero." },
+  { pattern: "Cycle too short", title: "Cycle too short", hint: "Cycle duration must be at least 60 seconds." },
+  { pattern: "Cycle too long", title: "Cycle too long", hint: "Cycle duration cannot exceed 365 days." },
+  { pattern: "Bad name length", title: "Invalid name", hint: "Circle name must be 1-64 characters." },
+  { pattern: "Username required", title: "Username required", hint: "You must provide a username to create a circle." },
+  { pattern: "Contribution > 0", title: "Invalid contribution", hint: "Contribution amount must be greater than zero." },
 ];
 
 export function parseTxError(err: unknown): ParsedError {

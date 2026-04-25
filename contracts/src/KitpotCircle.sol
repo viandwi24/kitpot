@@ -20,6 +20,9 @@ interface IKitpotAchievements {
 /// @title KitpotCircle — Trustless Rotating Savings Circle (ROSCA) on Initia
 /// @notice Full-featured savings circles with reputation gating,
 ///         collateral, late penalties, and public discovery.
+///         Pot distribution uses pull model: recipient calls claimPot() after cycle end;
+///         if dormant past DORMANT_GRACE, anyone can call substituteClaim() (pot still
+///         goes to recipient, caller earns KEEPER_REWARD_BPS).
 ///         Auto-signing is handled natively via InterwovenKit (Cosmos authz+feegrant).
 contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
@@ -67,6 +70,23 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         uint256 missedPayments;
     }
 
+    struct CycleTiming {
+        uint256 cycleStart;
+        uint256 cycleEnd;
+        uint256 dormantDeadline;
+        uint256 nowTs;
+        bool    canRecipientClaim;
+        bool    canSubstituteClaim;
+        address recipient;
+    }
+
+    // ============================================================
+    //                        CONSTANTS
+    // ============================================================
+
+    uint256 public constant DORMANT_GRACE = 7 days;
+    uint256 public constant KEEPER_REWARD_BPS = 10; // 0.1% of pot
+
     // ============================================================
     //                     STATE VARIABLES
     // ============================================================
@@ -109,6 +129,8 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
 
     event DepositMade(uint256 indexed circleId, address indexed member, uint256 cycleNumber, uint256 amount);
     event PotDistributed(uint256 indexed circleId, uint256 cycleNumber, address indexed recipient, uint256 potAmount, uint256 feeAmount);
+    event PotClaimed(uint256 indexed circleId, uint256 indexed cycleIndex, address indexed recipient, uint256 payout, uint256 fee);
+    event SubstituteClaimed(uint256 indexed circleId, uint256 indexed cycleIndex, address indexed recipient, address keeper, uint256 payout, uint256 platformFee, uint256 keeperReward);
     event CycleAdvanced(uint256 indexed circleId, uint256 newCycleNumber);
 
     event CollateralDeposited(uint256 indexed circleId, address indexed member, uint256 amount);
@@ -162,13 +184,16 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         IKitpotReputation.TrustTier minimumTier,
         string calldata initUsername
     ) external whenNotPaused returns (uint256 circleId) {
-        require(bytes(name).length > 0, "Name required");
+        require(bytes(name).length > 0 && bytes(name).length <= 64, "Bad name length");
         require(tokenAddress != address(0), "Invalid token");
-        require(contributionAmount > 0, "Amount must be > 0");
-        require(maxMembers >= 3 && maxMembers <= 20, "Members: 3-20");
-        require(cycleDuration >= 30, "Cycle too short");
-        require(gracePeriod <= cycleDuration, "Grace > cycle");
+        require(contributionAmount > 0, "Contribution > 0");
+        require(maxMembers >= 3 && maxMembers <= 20, "Members 3-20");
+        require(cycleDuration >= 60, "Cycle too short (min 60s)");
+        require(cycleDuration <= 365 days, "Cycle too long");
+        require(gracePeriod > 0, "Grace must be > 0");
+        require(gracePeriod < cycleDuration, "Grace must be < cycle");
         require(latePenaltyBps <= MAX_LATE_PENALTY_BPS, "Penalty too high");
+        require(bytes(initUsername).length > 0, "Username required");
 
         circleId = nextCircleId++;
 
@@ -284,7 +309,29 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
         _depositFor(circleId, msg.sender);
     }
 
-    /// @notice Advance cycle: distribute pot to next recipient
+    /// @notice Recipient claims their pot after cycle duration elapses.
+    function claimPot(uint256 circleId)
+        external
+        nonReentrant
+        whenNotPaused
+        onlyCircleStatus(circleId, CircleStatus.Active)
+    {
+        _claimPotInternal(circleId);
+    }
+
+    /// @notice Permissionless substitute claim after dormant grace.
+    ///         Pot goes to the actual recipient; caller earns keeper reward.
+    function substituteClaim(uint256 circleId)
+        external
+        nonReentrant
+        whenNotPaused
+        onlyCircleStatus(circleId, CircleStatus.Active)
+    {
+        _substituteClaimInternal(circleId);
+    }
+
+    /// @dev DEPRECATED — use claimPot() or substituteClaim().
+    ///      Kept as routing alias for backward compat during migration.
     function advanceCycle(uint256 circleId)
         external
         nonReentrant
@@ -293,74 +340,153 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
     {
         Circle storage c = _circles[circleId];
         Member[] storage members = _circleMembers[circleId];
+        address recipient = members[c.currentCycle].addr;
+        uint256 cycleStart = cycleStartTimes[circleId][c.currentCycle];
+        uint256 cycleEnd = cycleStart + c.cycleDuration;
 
+        if (msg.sender == recipient && block.timestamp >= cycleEnd && block.timestamp < cycleEnd + DORMANT_GRACE) {
+            _claimPotInternal(circleId);
+        } else if (block.timestamp >= cycleEnd + DORMANT_GRACE) {
+            _substituteClaimInternal(circleId);
+        } else if (block.timestamp >= cycleEnd) {
+            // Cycle elapsed but caller is not recipient — allow recipient-style claim
+            // for backward compat (old UI lets anyone call advanceCycle)
+            _claimPotInternal(circleId);
+        } else {
+            revert("Cycle not elapsed");
+        }
+    }
+
+    // ============================================================
+    //               INTERNAL CLAIM LOGIC
+    // ============================================================
+
+    function _claimPotInternal(uint256 circleId) internal {
+        Circle storage c = _circles[circleId];
+        Member[] storage members = _circleMembers[circleId];
+
+        address recipient = members[c.currentCycle].addr;
+        uint256 cycleStart = cycleStartTimes[circleId][c.currentCycle];
+        require(cycleStart > 0, "Cycle not started");
+        require(block.timestamp >= cycleStart + c.cycleDuration, "Cycle not elapsed");
+
+        _processMissedPayments(circleId);
+
+        uint256 totalPot = c.contributionAmount * c.maxMembers;
+        uint256 fee = (totalPot * platformFeeBps) / 10000;
+        uint256 payout = totalPot - fee;
+
+        IERC20(c.tokenAddress).safeTransfer(recipient, payout);
+        if (fee > 0) accumulatedFees[c.tokenAddress] += fee;
+
+        cycleRecipient[circleId][c.currentCycle] = recipient;
+        members[c.currentCycle].hasReceivedPot = true;
+
+        reputation.recordPotReceived(recipient, payout);
+        _maybeAwardFirstPot(recipient, circleId);
+
+        emit PotClaimed(circleId, c.currentCycle, recipient, payout, fee);
+        emit PotDistributed(circleId, c.currentCycle, recipient, payout, fee);
+
+        _advanceToNextCycle(circleId);
+    }
+
+    function _substituteClaimInternal(uint256 circleId) internal {
+        Circle storage c = _circles[circleId];
+        Member[] storage members = _circleMembers[circleId];
+
+        address recipient = members[c.currentCycle].addr;
+        uint256 cycleStart = cycleStartTimes[circleId][c.currentCycle];
+        require(cycleStart > 0, "Cycle not started");
         require(
-            block.timestamp >= cycleStartTimes[circleId][c.currentCycle] + c.cycleDuration,
-            "Cycle not elapsed"
+            block.timestamp >= cycleStart + c.cycleDuration + DORMANT_GRACE,
+            "Wait for dormant grace"
         );
 
-        // Handle members who haven't paid — use collateral
+        _processMissedPayments(circleId);
+
+        uint256 totalPot = c.contributionAmount * c.maxMembers;
+        uint256 pFee = (totalPot * platformFeeBps) / 10000;
+        uint256 keeperReward = (totalPot * KEEPER_REWARD_BPS) / 10000;
+        uint256 payout = totalPot - pFee - keeperReward;
+
+        IERC20 token = IERC20(c.tokenAddress);
+        token.safeTransfer(recipient, payout);
+        if (keeperReward > 0) token.safeTransfer(msg.sender, keeperReward);
+        if (pFee > 0) accumulatedFees[c.tokenAddress] += pFee;
+
+        cycleRecipient[circleId][c.currentCycle] = recipient;
+        members[c.currentCycle].hasReceivedPot = true;
+
+        reputation.recordPotReceived(recipient, payout);
+        _maybeAwardFirstPot(recipient, circleId);
+
+        emit SubstituteClaimed(circleId, c.currentCycle, recipient, msg.sender, payout, pFee, keeperReward);
+
+        _advanceToNextCycle(circleId);
+    }
+
+    function _advanceToNextCycle(uint256 circleId) internal {
+        Circle storage c = _circles[circleId];
+        Member[] storage members = _circleMembers[circleId];
+
+        uint256 nextCycle = c.currentCycle + 1;
+
+        if (nextCycle < c.totalCycles) {
+            // Deterministic: use previous cycle end, NOT block.timestamp
+            uint256 prevCycleStart = cycleStartTimes[circleId][c.currentCycle];
+            uint256 nextStart = prevCycleStart + c.cycleDuration;
+            // Guard: if claim was so late that next cycle already lapsed, reset to now
+            if (block.timestamp > nextStart + c.cycleDuration) {
+                nextStart = block.timestamp;
+            }
+            cycleStartTimes[circleId][nextCycle] = nextStart;
+        }
+
+        c.currentCycle = nextCycle;
+
+        if (c.currentCycle >= c.totalCycles) {
+            c.status = CircleStatus.Completed;
+            for (uint256 i = 0; i < members.length; i++) {
+                address m = members[i].addr;
+                reputation.recordCircleCompleted(m, circleId);
+                _maybeAwardCompletionAchievements(m, members[i].missedPayments, circleId);
+            }
+            emit CircleCompleted(circleId);
+        } else {
+            emit CycleAdvanced(circleId, c.currentCycle);
+        }
+    }
+
+    // ============================================================
+    //               EXTRACTED INTERNAL HELPERS
+    // ============================================================
+
+    function _processMissedPayments(uint256 circleId) internal {
+        Circle storage c = _circles[circleId];
+        Member[] storage members = _circleMembers[circleId];
         for (uint256 i = 0; i < members.length; i++) {
             address member = members[i].addr;
             if (!hasPaid[circleId][c.currentCycle][member]) {
                 _handleMissedPayment(circleId, member);
             }
         }
+    }
 
-        // Determine recipient (round-robin)
-        address recipient = members[c.currentCycle].addr;
-        uint256 totalPot = c.contributionAmount * c.maxMembers;
-
-        // Calculate fee
-        uint256 fee = (totalPot * platformFeeBps) / 10000;
-        uint256 payout = totalPot - fee;
-
-        // Transfer pot to recipient
-        IERC20(c.tokenAddress).safeTransfer(recipient, payout);
-        if (fee > 0) {
-            accumulatedFees[c.tokenAddress] += fee;
-        }
-
-        // Track
-        cycleRecipient[circleId][c.currentCycle] = recipient;
-        members[c.currentCycle].hasReceivedPot = true;
-
-        // Record in reputation
-        reputation.recordPotReceived(recipient, payout);
-
-        // Award first pot received
+    function _maybeAwardFirstPot(address recipient, uint256 circleId) internal {
         if (address(achievements) != address(0) && !achievements.has(recipient, IKitpotAchievements.AchievementType.FirstPotReceived)) {
             try achievements.award(recipient, IKitpotAchievements.AchievementType.FirstPotReceived, circleId) {} catch {}
         }
+    }
 
-        emit PotDistributed(circleId, c.currentCycle, recipient, payout, fee);
-
-        // Advance
-        uint256 nextCycle = c.currentCycle + 1;
-        if (nextCycle < c.totalCycles) {
-            cycleStartTimes[circleId][nextCycle] = block.timestamp;
-        }
-        c.currentCycle = nextCycle;
-
-        if (c.currentCycle >= c.totalCycles) {
-            c.status = CircleStatus.Completed;
-            // Record completion for all members + award achievements
-            for (uint256 i = 0; i < members.length; i++) {
-                address m = members[i].addr;
-                reputation.recordCircleCompleted(m, circleId);
-                if (address(achievements) != address(0)) {
-                    if (!achievements.has(m, IKitpotAchievements.AchievementType.CircleCompleted)) {
-                        try achievements.award(m, IKitpotAchievements.AchievementType.CircleCompleted, circleId) {} catch {}
-                    }
-                    // Perfect circle: no missed payments
-                    if (members[i].missedPayments == 0 && !achievements.has(m, IKitpotAchievements.AchievementType.PerfectCircle)) {
-                        try achievements.award(m, IKitpotAchievements.AchievementType.PerfectCircle, circleId) {} catch {}
-                    }
-                }
+    function _maybeAwardCompletionAchievements(address member, uint256 missedPayments, uint256 circleId) internal {
+        if (address(achievements) != address(0)) {
+            if (!achievements.has(member, IKitpotAchievements.AchievementType.CircleCompleted)) {
+                try achievements.award(member, IKitpotAchievements.AchievementType.CircleCompleted, circleId) {} catch {}
             }
-            emit CircleCompleted(circleId);
-        } else {
-            emit CycleAdvanced(circleId, c.currentCycle);
+            if (missedPayments == 0 && !achievements.has(member, IKitpotAchievements.AchievementType.PerfectCircle)) {
+                try achievements.award(member, IKitpotAchievements.AchievementType.PerfectCircle, circleId) {} catch {}
+            }
         }
     }
 
@@ -497,6 +623,21 @@ contract KitpotCircle is Ownable, ReentrancyGuard, Pausable {
             allPaid = _allMembersPaid(circleId);
             canAdvance = block.timestamp >= cycleEndTime;
         }
+    }
+
+    /// @notice Returns timing info for the current cycle, used by frontend countdowns.
+    function getCycleTiming(uint256 circleId) external view returns (CycleTiming memory timing) {
+        Circle storage c = _circles[circleId];
+        if (c.status != CircleStatus.Active || c.currentCycle >= c.totalCycles) {
+            return timing; // zero-valued
+        }
+        timing.cycleStart = cycleStartTimes[circleId][c.currentCycle];
+        timing.cycleEnd = timing.cycleStart + c.cycleDuration;
+        timing.dormantDeadline = timing.cycleEnd + DORMANT_GRACE;
+        timing.nowTs = block.timestamp;
+        timing.recipient = _circleMembers[circleId][c.currentCycle].addr;
+        timing.canRecipientClaim = block.timestamp >= timing.cycleEnd;
+        timing.canSubstituteClaim = block.timestamp >= timing.dormantDeadline;
     }
 
     function getCollateral(uint256 circleId, address member) external view returns (uint256) {

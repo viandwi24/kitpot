@@ -88,6 +88,86 @@ export const KITPOT_ABI = [
   },
   {
     "type": "function",
+    "name": "claimPot",
+    "inputs": [
+      {
+        "name": "circleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "substituteClaim",
+    "inputs": [
+      {
+        "name": "circleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "DORMANT_GRACE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "KEEPER_REWARD_BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCycleTiming",
+    "inputs": [
+      {
+        "name": "circleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "timing",
+        "type": "tuple",
+        "internalType": "struct KitpotCircle.CycleTiming",
+        "components": [
+          { "name": "cycleStart", "type": "uint256", "internalType": "uint256" },
+          { "name": "cycleEnd", "type": "uint256", "internalType": "uint256" },
+          { "name": "dormantDeadline", "type": "uint256", "internalType": "uint256" },
+          { "name": "nowTs", "type": "uint256", "internalType": "uint256" },
+          { "name": "canRecipientClaim", "type": "bool", "internalType": "bool" },
+          { "name": "canSubstituteClaim", "type": "bool", "internalType": "bool" },
+          { "name": "recipient", "type": "address", "internalType": "address" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "allMembersPaid",
     "inputs": [
       {
