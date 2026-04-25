@@ -120,32 +120,32 @@ The interesting part is not the contract math — chit-fund mechanics are well u
 ```mermaid
 graph LR
   subgraph Browser
-    UI[Next.js 16 + React 19<br/>kitpot.vercel.app]
-    IK[InterwovenKit<br/>@initia/interwovenkit-react]
-    PR[Privy<br/>Google / email login]
+    UI["Next.js 16 + React 19<br/>kitpot.vercel.app"]
+    IK["InterwovenKit<br/>@initia/interwovenkit-react"]
+    PR["Privy<br/>Google / email login"]
   end
 
   subgraph Vercel
-    API[/api/gas-faucet<br/>auto-mints GAS + USDC + USDe<br/>via @initia/initia.js + viem/]
+    API["/api/gas-faucet<br/>auto-mints GAS + USDC + USDe<br/>via @initia/initia.js + viem"]
   end
 
   subgraph "Initia L1 (initiation-2)"
-    L1Reg[.init Username Registry]
-    Authz[x/authz + x/feegrant<br/>auto-sign grants]
+    L1Reg[".init Username Registry"]
+    Authz["x/authz + x/feegrant<br/>auto-sign grants"]
   end
 
   subgraph "Kitpot rollup (kitpot-2)"
-    Node[minitiad<br/>MiniEVM rollup node]
-    KC[KitpotCircle.sol<br/>ROSCA engine + pull-claim]
-    KR[KitpotReputation.sol<br/>XP / tier / streak]
-    KA[KitpotAchievements.sol<br/>soulbound ERC721, on-chain SVG]
+    Node["minitiad<br/>MiniEVM rollup node"]
+    KC["KitpotCircle.sol<br/>ROSCA engine + pull-claim"]
+    KR["KitpotReputation.sol<br/>XP / tier / streak"]
+    KA["KitpotAchievements.sol<br/>soulbound ERC721, on-chain SVG"]
     USDC[MockUSDC]
     USDe[MockUSDe]
   end
 
   PR --> IK
   UI --> IK
-  IK -->|requestTxBlock / submitTxBlock<br/>MsgCall envelope| Node
+  IK -->|"requestTxBlock / submitTxBlock<br/>MsgCall envelope"| Node
   IK -->|useUsernameQuery| L1Reg
   IK -->|autoSign.enable| Authz
   UI --> API
@@ -213,21 +213,21 @@ sequenceDiagram
   IK->>U: derive ghost wallet from user signature
   IK->>U: sign authz grant + feegrant grant
   U->>L1: broadcast MsgGrantAllowance + MsgGrant
-  L1-->>IK: indexed (≈60 s on single-validator testnet)
+  L1-->>IK: indexed (~60s on single-validator testnet)
   IK->>U: toggle "Auto-sign ON"
   loop For each subsequent tx this session
     U->>IK: deposit() / claimPot() / approveToken()
     IK->>K: submitTxBlock — ghost wallet signs MsgExec wrapping MsgCall
     K-->>U: receipt — no popup
   end
-  Note over U,IK: Closing the tab deletes the ghost key.<br/>Session ends; next visit needs another enable.
+  Note over U,IK: Closing the tab deletes the ghost key. Session ends; next visit needs another enable.
 ```
 
 ## What's intentionally NOT shipped (honest scope)
 
 - **Background auto-pay (server-side bot).** Auto-sign as integrated is browser-bound. Shipping a server bot that holds long-lived authz grants from users is a real engineering problem (key custody, monitoring, cost) that we do not solve in this submission. It is on the roadmap below.
 - **OPinit executor + IBC relayer running on our public deployment.** Our `infra/dokploy/entrypoint.sh` contains the bot setup but ships with `RUN_OPINIT=false` because each bot needs an L1-funded mnemonic and active monitoring. Bridge UI is integrated and the kitpot-2 chain is bridge-ready architecturally; making the L1↔rollup transport actually carry assets requires enabling those bots and registering kitpot-2 in the Initia chain registry. This is documented openly in `/about` and in the Faucet page Bridge card.
-- **Telegram mini-app.** A reference ROSCA on a different chain (CrediKye on Creditcoin) ships a Grammy-based Telegram surface for notifications and lightweight UX. We did not build this in the hackathon window. See vision below.
+- **Telegram mini-app.** A mobile-first Telegram bot surface for notifications (your turn to claim, deposit due, late-penalty incoming) is a natural fit for a ROSCA product, and we did not build it in the hackathon window. See vision below.
 - **Mainnet deployment.** Everything below is on Initia testnet. Our smart contracts are not audited.
 
 These are conscious tradeoffs, not bugs. We chose to focus the time budget on what would directly demonstrate Initia-native integration depth: all three native features, multi-token circles, pull-claim + permissionless keeper, and an honest live demo.
@@ -255,19 +255,20 @@ We are not pitching a "DeFi yield" product. The promise to users is "the savings
 
 ## Competitive landscape
 
-| | Kitpot | CrediKye (Creditcoin) | Generic crypto wallet |
+| | Offline ROSCAs (today) | Generic stablecoin transfer | **Kitpot** |
 |---|---|---|---|
-| Initia-native auto-sign | ✅ | ❌ | ❌ |
-| Initia `.init` username registry | ✅ | ❌ | ❌ |
-| Interwoven Bridge UI | ✅ (bidirectional) | ❌ | ❌ |
-| Multi-token circles | ✅ USDC + USDe + extensible | ❌ single token | n/a |
-| On-chain late penalty | ✅ collateral slash | ⚠️ off-chain points only | n/a |
-| Pull-claim + permissionless keeper safety net | ✅ | ❌ | n/a |
-| Telegram mini-app | ❌ (roadmap) | ✅ Grammy bot | n/a |
-| Soulbound NFT badges | ✅ on-chain SVG | ✅ | n/a |
-| Own appchain | ✅ kitpot-2 rollup via minitiad | n/a (Creditcoin) | n/a |
+| Trustless treasurer | ❌ human treasurer | n/a (no rotation) | ✅ smart contract |
+| Late-payment enforcement | ⚠️ social pressure only | n/a | ✅ on-chain collateral slash |
+| Predictable cycle deadlines | ⚠️ depends on the treasurer | n/a | ✅ deterministic on-chain |
+| Multi-currency support | ⚠️ one local currency per circle | ✅ any token | ✅ any ERC20 (USDC + USDe shipped) |
+| Initia-native auto-sign | ❌ | ❌ | ✅ session-based silent deposits |
+| Initia `.init` username display | ❌ | ❌ | ✅ real L1 registry only |
+| Interwoven Bridge UI | ❌ | ❌ | ✅ bidirectional Deposit + Withdraw |
+| Pull-claim + permissionless keeper safety net | ❌ pot can stall when treasurer disappears | n/a | ✅ recipient claims, fallback after 7 days |
+| Soulbound reputation NFT | ❌ | ❌ | ✅ on-chain SVG badges |
+| Own Initia rollup (`kitpot-2`) | ❌ | ❌ | ✅ via `minitiad` |
 
-The closest direct comparison (CrediKye) is on a different chain (Creditcoin) so we are not literally competing for the same INITIATE prize, but it is the most honest mirror of the product surface. Our advantage is depth of Initia integration; their advantage is mobile distribution. Both are correct strategies for their respective ecosystems.
+To our knowledge, **Kitpot is the first on-chain rotating-savings-circle primitive on Initia**. The closest analogues are off-chain group savings apps with manual treasurers (the millions of WhatsApp group ROSCAs that already exist) and generic crypto wallets that can theoretically do peer-to-peer transfers but offer no rotation, no enforcement, no reputation, and no shared user experience around the cycle ritual. We do not see a direct on-chain competitor in the Initia ecosystem at submission time.
 
 ## Roadmap (post-hackathon)
 

@@ -67,26 +67,26 @@ Kitpot is a rotating savings circle where the treasurer is a smart contract.
 ```mermaid
 graph LR
   subgraph Browser
-    UI[Next.js + React<br/>kitpot.vercel.app]
+    UI["Next.js + React<br/>kitpot.vercel.app"]
     IK[InterwovenKit SDK]
   end
 
   subgraph "Initia L1 (initiation-2)"
-    Reg[.init Username Registry]
-    Authz[x/authz + x/feegrant<br/>auto-sign grants]
+    Reg[".init Username Registry"]
+    Authz["x/authz + x/feegrant<br/>auto-sign grants"]
   end
 
   subgraph "Kitpot rollup (kitpot-2)"
-    Node[minitiad MiniEVM node]
-    Circle[KitpotCircle.sol<br/>ROSCA + pull-claim + keeper]
-    Rep[KitpotReputation.sol<br/>XP / tier / streak]
-    Ach[KitpotAchievements.sol<br/>soulbound NFT, on-chain SVG]
+    Node["minitiad MiniEVM node"]
+    Circle["KitpotCircle.sol<br/>ROSCA + pull-claim + keeper"]
+    Rep["KitpotReputation.sol<br/>XP / tier / streak"]
+    Ach["KitpotAchievements.sol<br/>soulbound NFT, on-chain SVG"]
     USDC[MockUSDC]
     USDe[MockUSDe]
   end
 
   UI --> IK
-  IK -->|MsgCall via requestTxBlock<br/>or submitTxBlock| Node
+  IK -->|"MsgCall via requestTxBlock<br/>or submitTxBlock"| Node
   IK -->|useUsernameQuery| Reg
   IK -->|autoSign.enable| Authz
   Circle --> Rep
@@ -136,19 +136,20 @@ The fee model is symmetric to traditional ROSCA management fees (5–10% in many
 
 ## Competitive landscape
 
-| | Kitpot | CrediKye (Creditcoin) | Generic crypto wallet |
+| | Offline ROSCAs (today) | Generic stablecoin transfer | **Kitpot** |
 |---|---|---|---|
-| Initia-native auto-sign | ✅ | ❌ | ❌ |
-| Initia `.init` username registry | ✅ | ❌ | ❌ |
-| Interwoven Bridge UI | ✅ (bidirectional) | ❌ | ❌ |
-| Multi-token circles | ✅ USDC + USDe + extensible | ❌ single token | n/a |
-| On-chain late penalty | ✅ collateral slash | ⚠️ off-chain points only | n/a |
-| Pull-claim + permissionless keeper | ✅ | ❌ | n/a |
-| Telegram mini-app | ❌ (roadmap) | ✅ Grammy bot | n/a |
-| Soulbound NFT badges | ✅ on-chain SVG | ✅ | n/a |
-| Own Initia rollup | ✅ kitpot-2 (minitiad) | n/a | n/a |
+| Trustless treasurer | ❌ human treasurer | n/a (no rotation) | ✅ smart contract |
+| Late-payment enforcement | ⚠️ social pressure only | n/a | ✅ on-chain collateral slash |
+| Predictable cycle deadlines | ⚠️ depends on the treasurer | n/a | ✅ deterministic on-chain |
+| Multi-currency support | ⚠️ one local currency per circle | ✅ any token | ✅ any ERC20 (USDC + USDe shipped) |
+| Initia-native auto-sign | ❌ | ❌ | ✅ session-based silent deposits |
+| Initia `.init` username display | ❌ | ❌ | ✅ real L1 registry only |
+| Interwoven Bridge UI | ❌ | ❌ | ✅ bidirectional Deposit + Withdraw |
+| Pull-claim + permissionless keeper | ❌ pot can stall when treasurer disappears | n/a | ✅ recipient claims, fallback after 7 days |
+| Soulbound reputation NFT | ❌ | ❌ | ✅ on-chain SVG badges |
+| Own Initia rollup (`kitpot-2`) | ❌ | ❌ | ✅ via `minitiad` |
 
-The closest direct comparison (CrediKye) is on Creditcoin so we are not literally competing for the same INITIATE prize, but it is the most honest mirror of the product surface. Our advantage is depth of Initia integration; their advantage is mobile distribution. Both are correct strategies for their respective ecosystems.
+To our knowledge, **Kitpot is the first on-chain rotating-savings-circle primitive on Initia**. The closest analogues are off-chain group savings apps with manual treasurers (the millions of WhatsApp group ROSCAs that already exist) and generic crypto wallets that can theoretically do peer-to-peer transfers but offer no rotation, no enforcement, no reputation, and no shared user experience around the cycle ritual. We do not see a direct on-chain competitor in the Initia ecosystem at submission time.
 
 ## Vision & roadmap
 
