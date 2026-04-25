@@ -78,6 +78,15 @@ Kitpot is a rotating savings circle where the treasurer is a smart contract. Eve
 
 The interesting part is not the contract math — chit-fund mechanics are well understood. The interesting part is making the on-chain version feel like the off-chain version: tap pay → done, no approval popup per month. We solve that with Initia's native auto-signing primitive: a one-time grant lets the user pay every cycle silently for the rest of their session.
 
+## This is not gambling
+
+ROSCAs are sometimes mistaken for lotteries or chitfund scams. Kitpot deliberately does not have either property:
+
+- Everyone receives the pot **exactly once** — payout order is the join order, predetermined at circle start.
+- **No random chance, no auctions** in the default circle.  Returns are guaranteed by construction (you put in N × contribution, you get out 1 × pot, minus 1% fee).
+- Late payments are penalised against your own collateral — there is no edge against you that you can't see in the contract.
+- Works best with friends, colleagues, or a tight community where social punishment for missing payments still has teeth.
+
 ## How it works (90 seconds)
 
 ```
@@ -140,7 +149,20 @@ Unranked  →  Bronze  →  Silver  →  Gold  →  Diamond
 
 Tiers are not just decorative. Circle creators can require a **minimum trust tier** at create time (`minimumTier` field on `createCircle`), so high-value circles can fence themselves off from members with no track record. This is the on-chain version of "we only invite people we've already done arisan with for years".
 
-**XP system + daily quest streaks** — `claimDailyQuest` on the reputation contract gives a small XP bump each day a user shows up. Every on-time payment, every completed circle, every received pot also issues XP. Users level 0 → 5 visible in profile + leaderboard.
+**XP system — explicit, on-chain, no hidden formula** (every value below comes straight from `KitpotReputation.sol`):
+
+| Action | XP |
+|---|---|
+| Join a circle | +20 |
+| On-time payment | +10 |
+| Late payment (paid past grace) | +3 |
+| Receive a pot | +100 |
+| Complete a circle (with at least one miss) | +100 |
+| Complete a circle perfectly (zero misses) | +200 |
+| Daily quest claim | +25 |
+| Referral bonus (each side) | +50 |
+
+Levels 0 → 5 derived from total XP, visible in profile and leaderboard.
 
 **Leaderboards** — public ranking on three axes: total XP, circles completed, longest streak. Filterable by track tier.
 

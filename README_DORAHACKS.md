@@ -52,6 +52,15 @@ Kitpot is a rotating savings circle where the treasurer is a smart contract.
 - **Native Initia integration at depth.** All three INITIATE-recognised native features (auto-sign, `.init` usernames, Interwoven Bridge) integrated meaningfully — see below.
 - **Honest scope on auto-sign.** Auto-sign is session-based: enable once per session, and per-cycle deposits sign silently while the tab is open. We do **not** claim "background auto-pay while you sleep" — that's a server-side bot problem we treat as a real product step on the roadmap, not a hackathon hack.
 
+## This is not gambling
+
+ROSCAs are sometimes mistaken for lotteries or chitfund scams. Kitpot deliberately does not have either property:
+
+- Everyone receives the pot **exactly once** — payout order is the join order, predetermined at circle start.
+- **No random chance, no auctions** in the default circle. Returns are guaranteed by construction (you put in N × contribution, you get out 1 × pot, minus 1% fee).
+- Late payments are penalised against your own collateral — there is no edge against you that you can't see in the contract.
+- Works best with friends, colleagues, or a tight community where social punishment for missing payments still has teeth.
+
 ## How it works (90 seconds)
 
 1. **Create** — Anyone creates a circle. Pick token (USDC / USDe / any ERC20), contribution amount, member count (3–20), cycle duration (60 s for demo, days/weeks/months in production), grace period, late penalty %, public/private, optional minimum trust tier.
@@ -69,7 +78,7 @@ Off-chain ROSCAs already work because of social pressure: nobody wants to be the
 - **12 soulbound achievement NFTs** (`KitpotAchievements.sol` — ERC721 with transfer disabled, **on-chain SVG metadata, no IPFS dependency**). Awarded automatically by the contract when milestones hit: First Circle, First Pot, Circle Complete, Perfect Circle (zero missed payments), Streak 3 / 10 / 25, Circle Creator, High Roller, Veteran (5+ circles), Diamond, Early Adopter.
 - **5 trust tiers** — Unranked → Bronze → Silver → Gold → Diamond, derived on-chain from XP, missed-payment ratio, total cycles completed.
 - **Tier-gated circles** — circle creators can require a `minimumTier` at create time, so high-value circles fence themselves off from members with no track record. The on-chain version of "we only invite people we've already done arisan with for years."
-- **XP + daily quest streaks** — every on-time payment, every completed circle, every received pot, plus a daily `claimDailyQuest` issues XP. Users level 0 → 5 visible in profile and leaderboard.
+- **XP system, all values pulled from `KitpotReputation.sol` (no hidden formula):** Join circle +20 · On-time payment +10 · Late payment +3 · Pot received +100 · Circle completed +100 (+200 if zero misses) · Daily quest +25 · Referral +50 each side. Users level 0 → 5 visible in profile and leaderboard.
 - **Leaderboards** — public ranking on total XP, circles completed, and longest streak.
 
 All gamification state is on-chain, permissionless, and authored by `KitpotCircle.sol` — no off-chain backend awarding badges, no admin who can hand out reputation. If you completed a perfect circle, the contract minted you the badge atomically with the last `claimPot()`.
