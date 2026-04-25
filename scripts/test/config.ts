@@ -67,15 +67,14 @@ export function loadDeployed(): {
   KitpotCircle: `0x${string}`;
 } {
   if (NETWORK === "testnet") {
-    // Verified on-chain via eth_getCode 2026-04-25 — addresses below are the
-    // live, working contracts. Older entries in apps/web/.env.local point at
-    // dead addresses (no code) and need to be refreshed for production.
+    // Plan 22 redeploy 2026-04-25 — pull-claim model + permissionless keeper.
+    // Old contracts at 0x62d244f3... orphaned (push-based advanceCycle).
     return {
-      MockUSDC:           "0xe7bf5d16190f4d7d4c1ae99250405702d2f0a442",
-      MockUSDe:           "0x85b10791e3B782B9ddB3877E28D1088E75074B54",
-      KitpotReputation:   "0x073aa6cfcf9e663cc24b9eb72b8e71e6d9ba072d",
-      KitpotAchievements: "0x956a0285b10c8afaeadef98a77b1da48642dd97a",
-      KitpotCircle:       "0x62d244f304bc7638d44f5e335dfadf8c9dcef990",
+      MockUSDC:           "0xa157C9fB56A2929D30d5EBe9442Ab669D5943Df1",
+      MockUSDe:           "0x25a9e7ff5949c25cd28715340dfde84035ff7b3d",
+      KitpotReputation:   "0x24b0D1B543dCC017e662Cb2F70E67C3895506d82",
+      KitpotAchievements: "0x97E36B91ccea9d6dBFB606fD822286f58978eDaB",
+      KitpotCircle:       "0x7526CE9959756Fb5fc5e4431999A2660eEd8cD86",
     };
   }
   try {
