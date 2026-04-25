@@ -46,7 +46,7 @@ Or skip steps 1–3 entirely and use the live deployment at <https://kitpot.verc
 | | |
 |---|---|
 | **Live demo** | <https://kitpot.vercel.app> |
-| **Demo video** | _to be added_ |
+| **Demo video** | <https://www.youtube.com/watch?v=EJ9o45Kt0ww> |
 | **Track** | Gaming & Consumer |
 | **Rollup chain ID** | `kitpot-2` (EVM 64146729809684) |
 | **Hackathon** | INITIATE: The Initia Hackathon |

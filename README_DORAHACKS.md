@@ -6,7 +6,7 @@
 |---|---|
 | Live demo | <https://kitpot.vercel.app> |
 | Repository | <https://github.com/viandwi24/kitpot> |
-| Demo video | _to be added before submit_ |
+| Demo video | <https://www.youtube.com/watch?v=EJ9o45Kt0ww> |
 | Track | Gaming & Consumer |
 | Rollup chain ID | `kitpot-2` (EVM 64146729809684) |
 

@@ -3,10 +3,10 @@
   "repo_url": "https://github.com/viandwi24/kitpot",
   "commit_sha": "<fill-at-submit-time>",
   "rollup_chain_id": "kitpot-2",
-  "deployed_address": "0x62d244f304Bc7638D44f5e335DFaDF8c9DCef990",
+  "deployed_address": "0x7526CE9959756Fb5fc5e4431999A2660eEd8cD86",
   "vm": "evm",
   "native_feature": "auto-signing",
   "core_logic_path": "/contracts/src/KitpotCircle.sol",
   "native_feature_frontend_path": "/apps/web/src/hooks/use-kitpot-tx.ts",
-  "demo_video_url": "<fill-after-recording>"
+  "demo_video_url": "https://www.youtube.com/watch?v=EJ9o45Kt0ww"
 }
