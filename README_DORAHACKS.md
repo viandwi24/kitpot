@@ -1,230 +1,168 @@
 # Kitpot — Trustless Savings Circles on Initia
 
-> 500 years of rotating savings circles. Now trustless, automatic, and open to everyone.
+> The 500-year-old social savings ritual, on-chain, with the treasurer replaced by a smart contract.
 
-**Live App:** https://kitpot.vercel.app · **Track:** Gaming & Consumer
+| | |
+|---|---|
+| Live demo | <https://kitpot.vercel.app> |
+| Repository | <https://github.com/viandwi24/kitpot> |
+| Demo video | _to be added before submit_ |
+| Track | Gaming & Consumer |
+| Rollup chain ID | `kitpot-2` (EVM 64146729809684) |
 
----
+## Overview
 
-## The Problem
+Kitpot is a trustless rotating savings circle (ROSCA / arisan / chit fund) built on its own Initia EVM rollup. Friends pool a fixed contribution every cycle; the smart contract picks one member each round to receive the entire pot, then advances to the next member, until everyone has been paid exactly once.
 
-Meet Siti. She runs a 10-person arisan in her diaspora WhatsApp group. Every month she:
-- Sends 47 individual payment reminders
-- Manually verifies 10 bank transfers across 3 countries and 2 currencies
-- Updates a Google Sheet that 3 people have already edited incorrectly
-- Prays the elected treasurer doesn't disappear with $5,000
+It removes the centuries-old single-point-of-trust failure of traditional ROSCAs — the treasurer who could disappear with everyone's money — by making both the deposit collection and the pot distribution executable on-chain code, while keeping the UX feel of "tap pay → done" through Initia's native auto-signing.
 
-She's not alone. **300 million+ people** worldwide run rotating savings circles — called Arisan in Indonesia, Chit Fund in India, Hui in China, Tontine in West Africa, Paluwagan in the Philippines. Combined, these informal circles move **$50 billion+ per year in Indonesia alone**.
+## Problem
 
-Every single one of them has the same problem: **they require trusting a human treasurer.**
+Rotating savings circles are how 300+ million people on the planet save money. They go by many names — **Arisan** (Indonesia), **Chit Fund** (India), **Hui** (China), **Tanda** (Mexico), **Tontine** (West Africa), **Paluwagan** (Philippines), **Susu** (Caribbean), **Cundina** (Latin America) — but the shape is identical: a closed group commits to contribute the same amount each cycle, and one member at a time receives the total pot.
 
-The treasurer collects. The treasurer distributes. The treasurer can run.
+The failure mode is also identical everywhere:
 
----
+- **Someone has to hold the money** between contributions and payouts. That someone can disappear with the pot, miscount, play favorites, or just stop responding to messages.
+- **Late payments break trust** — and in real life, the only enforcement mechanism is shouting in the WhatsApp group.
+- **Recordkeeping is brittle** — a missed cycle, a forgotten transfer, a side-deal between friends — and the social contract starts to crack.
 
-## The Solution
+Rotating savings circles run on social trust, and social trust scales badly past your immediate friend group.
 
-**Kitpot** is the first trustless rotating savings circle on-chain.
+## Solution — Meet Kitpot
 
-The smart contract is the treasurer. It can't run.
+Kitpot is a rotating savings circle where the treasurer is a smart contract.
 
-**Auto-signing** means contributions happen automatically — members approve once, pay forever. No WhatsApp reminders, no manual transfers, no "I forgot." Just set it and watch it run.
+### Core mechanism
 
-**One flow:**
+- Every member deposits the same contribution into the contract each cycle.
+- The contract picks the recipient based on round-robin order (deterministic — everyone gets the pot exactly once).
+- When the cycle window elapses, the recipient calls `claimPot()` to atomically pull the pot to themselves and advance the circle to the next cycle.
+- If the recipient is dormant for 7 days past the cycle end, ANY wallet can call `substituteClaim()` — the pot still lands in the recipient's address, and the caller earns 0.1% as a keeper fee for unsticking the circle.
+- Collateral the user posts on join is held by the contract; missed deposits get slashed automatically (5% per missed cycle), so the late-payment problem is enforced atomically instead of socially.
 
-```
-Create → Join → Approve once → Contributions run automatically → Pot distributed by code
-```
+### Key design principles
 
----
+- **Token-agnostic** — circles can use USDC, USDe, or any future bridged stable. Multi-asset by design, not single-token.
+- **Predictable timing** — every cycle's deadline is calculated as `previousStart + cycleDuration`. A late claim never extends the next cycle.
+- **No bot dependency** — pull-claim model means recipients are economically incentivized to claim themselves; the permissionless keeper fallback eliminates the "stuck circle" failure mode without requiring infrastructure to babysit.
 
-## Why This Only Works on Initia
+### What makes Kitpot different
 
-Kitpot is not a generic DeFi app dressed up as a consumer product. The core features depend on Initia-native primitives that don't exist elsewhere with the same UX.
+- **First trustless ROSCA on Initia.** Same product surface as off-chain arisan; replaces the treasurer with code rather than rebuilding the social contract.
+- **Native Initia integration at depth.** All three INITIATE-recognised native features (auto-sign, `.init` usernames, Interwoven Bridge) integrated meaningfully — see below.
+- **Honest scope on auto-sign.** Auto-sign is session-based: enable once per session, and per-cycle deposits sign silently while the tab is open. We do **not** claim "background auto-pay while you sleep" — that's a server-side bot problem we treat as a real product step on the roadmap, not a hackathon hack.
 
-### 1. Auto-Signing Sessions ⭐
+## How it works (90 seconds)
 
-The killer feature. Without this, Kitpot is just another DeFi protocol where users need to click "confirm" every month.
+1. **Create** — Anyone creates a circle. Pick token (USDC / USDe / any ERC20), contribution amount, member count (3–20), cycle duration (60 s for demo, days/weeks/months in production), grace period, late penalty %, public/private, optional minimum trust tier.
+2. **Join** — Other members open the share link `/join/<id>` and deposit 1× contribution as collateral. When the last seat fills, the circle status flips Forming → Active and cycle 0 starts.
+3. **Auto-sign** — Each member enables auto-sign once (single header click, one Privy/Brave popup to sign the authz + feegrant message). From that moment on, deposits + claims this session sign silently.
+4. **Deposit** — Within each cycle window, every member calls `deposit()`. Late deposits past grace period: 5% of contribution slashed from collateral.
+5. **Claim** — Once the cycle elapses, the recipient calls `claimPot()`, which atomically slashes collateral of any non-payer, transfers (totalPot − 1% platform fee) to the recipient, and advances the circle to the next cycle.
+6. **Keeper safety net** — If the recipient is dormant for 7 more days, `substituteClaim()` unlocks for the public. Pot still lands at the recipient's wallet; the keeper earns 0.1% for unsticking.
+7. **Complete** — When every member has been the recipient once, status → Completed. Each member calls `claimCollateral()` to get their initial deposit back (minus any late-payment slashes).
 
-With Initia's auto-signing:
-- Members approve a session key with spending limits (max amount per cycle + expiry date)
-- An automated operator calls `depositContribution()` on their behalf
-- Members never see a wallet popup again until the circle ends
+## Architecture
 
-This is what makes Kitpot feel like a subscription service, not a blockchain app.
+```mermaid
+graph LR
+  subgraph Browser
+    UI[Next.js + React<br/>kitpot.vercel.app]
+    IK[InterwovenKit SDK]
+  end
 
-**Impossible to replicate on Ethereum** — no native session keys, no built-in spending limits, no trustless operator model.
+  subgraph "Initia L1 (initiation-2)"
+    Reg[.init Username Registry]
+    Authz[x/authz + x/feegrant<br/>auto-sign grants]
+  end
 
-### 2. .init Usernames ⭐
+  subgraph "Kitpot rollup (kitpot-2)"
+    Node[minitiad MiniEVM node]
+    Circle[KitpotCircle.sol<br/>ROSCA + pull-claim + keeper]
+    Rep[KitpotReputation.sol<br/>XP / tier / streak]
+    Ach[KitpotAchievements.sol<br/>soulbound NFT, on-chain SVG]
+    USDC[MockUSDC]
+    USDe[MockUSDe]
+  end
 
-Real people don't invite friends with hex addresses.
-
-`alice.init` is who you invite to your savings circle. Not `0x3338...ACb6`.
-
-Kitpot resolves `.init` names from the Initia REST API in real time — in the member list, in the leaderboard, in the connect button. It makes the app feel like a social product, not a blockchain product.
-
-### 3. Social Login via Privy + InterwovenKit
-
-Google, Apple, email, X — connect without a wallet extension.
-
-This is the onboarding gate. For diaspora communities unfamiliar with crypto: if they have to install MetaMask before they can join their friend's savings circle, they won't. With social login, the barrier disappears.
-
-### 4. Dedicated Rollup (kitpot-2)
-
-All circle state lives on `kitpot-2` — an EVM rollup on Initia testnet (chain ID: `64146729809684`, Bridge ID: `1883`). 
-
-Full transparency: every circle, every payment, every pot distribution is on-chain and verifiable. No multi-sig, no admin keys on the payment path.
-
----
-
-## How Kitpot Works
-
-### Creating a Circle
-
-1. Connect wallet (or sign in with Google)
-2. Set: contribution amount, number of members (3–20), cycle duration, minimum reputation tier
-3. Share the circle link or invite by `.init` username
-4. Deploy — circle is live on kitpot-2
-
-### Joining a Circle
-
-1. Open the circle link
-2. Deposit collateral (1x contribution — returned when circle completes)
-3. Set up auto-signing: approve max spend per cycle + session expiry
-4. Done — you're in
-
-### Running Automatically
-
-Once all members have joined and set up auto-signing:
-- Every cycle, an automated operator collects contributions from all members in a single batch transaction
-- The collected pot is sent to the next member in the round-robin queue
-- Reputation and XP are updated on-chain after each successful payment
-
-No reminders. No chasing. No trust required.
-
-### Completing a Circle
-
-When all cycles are done:
-- Collateral is returned to each member
-- Final reputation update: tier upgrade if eligible
-- Achievements minted as soulbound NFTs
-
----
-
-## The Reputation Layer
-
-Trust is the hardest problem in ROSCA. In Web2, it's solved by social proof — you only join groups with people you know. Kitpot makes trust on-chain and portable.
-
-**KitpotReputation.sol** tracks every address:
-- Circles completed
-- On-time payment rate
-- Longest streak
-- Total contributed and received
-- XP score and level
-
-**Trust Tiers:** Unranked → Bronze → Silver → Gold → Diamond
-
-Creators can gate their circles by minimum tier. Diamond-tier members have proven track records across multiple circles. Higher tiers get access to higher-value circles.
-
-**Achievements (KitpotAchievements.sol):** Soulbound ERC721 badges for milestones — First Circle, First Pot, Perfect Circle (100% on-time), Streak Champion, Veteran (10+ circles), Diamond tier, Early Adopter. On-chain SVG metadata, no IPFS dependency.
-
----
-
-## Product Screens
-
-**Landing** — problem statement, how it works, why Initia
-
-**Dashboard** — connected wallet's stats: trust tier, XP bar, streak flame, active circles, achievements earned, daily quest
-
-**My Circles** — active and completed circles with payment status for each cycle
-
-**Circle Detail** — member list with `.init` names, payment history, countdown to next cycle, deposit button, auto-signing setup
-
-**Discover** — browse public circles, filter by contribution amount and tier requirement
-
-**Faucet** — USDC balance, mint test USDC for testnet use
-
-**Leaderboard** — ranked by XP with `.init` usernames, tier badges, streak flames
-
-**Profile (`/u/[address]`)** — public reputation card: tier, XP level, achievements, circle history
-
----
-
-## Deployed Contracts (kitpot-2 rollup)
-
-| Contract | Address |
-|----------|---------|
-| KitpotCircle | `0xecb3a0F9381FDA494C3891337103260503411621` |
-| KitpotReputation | `0xf10267F194f8E09F9f2aa8Fc435e7A2Dac58172a` |
-| KitpotAchievements | `0xC421652EC7efBad98dDF42646055e531a28f61Ea` |
-| MockUSDC | `0xe5e7064B389a5d4ACE1d93b3C5E36bF27b4274Fa` |
-
-**Rollup:** `kitpot-2` · **EVM Chain ID:** `64146729809684` · **Bridge ID:** `1883`  
-**L1 Proof:** https://rest.testnet.initia.xyz/opinit/ophost/v1/bridges/1883
-
-**Tests:** 85 passed, 0 failed (`forge test -vv`)
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Contracts | Solidity 0.8.26 · Foundry · OpenZeppelin v5 |
-| Frontend | Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 |
-| Wallet | `@initia/interwovenkit-react` · Privy · wagmi · viem |
-| Rollup | kitpot-2 via Weave CLI (EVM, Initia testnet) |
-| Deploy | Vercel |
-
----
-
-## Market & Validation
-
-**Total addressable market:**
-- 300M+ ROSCA participants worldwide (World Bank)
-- $50B+/year in Indonesia alone
-- Growing diaspora communities in Singapore, Malaysia, Netherlands, Saudi Arabia
-
-**Why diaspora?**
-Cross-border ROSCA is the hardest version of the problem. Different banks, different timezones, FX fees, legal complexity. Blockchain solves all of them. Diaspora communities also tend to be more tech-forward and trust DeFi more than traditional finance.
-
-**Why now:**  
-Initia's rollup infrastructure, auto-signing primitives, and social login stack finally make it possible to build a ROSCA that feels like a consumer app, not a DeFi protocol. The timing is right — the tooling exists, the market is massive, and nobody has built this yet.
-
-**Revenue model:**  
-1% platform fee per pot distribution. Example: 10 members × $200/cycle = $2,000 pot → $20 fee per cycle. With 1,000 active circles, that's $20,000+ per cycle in protocol revenue.
-
----
-
-## The "Improved by Initia" Test
-
-Would Kitpot work the same on Ethereum or Solana?
-
-| Feature | Ethereum/Solana | Kitpot on Initia |
-|---------|----------------|-----------------|
-| Monthly payments | Manual wallet popup every cycle | Auto-signing: approve once, pay forever |
-| User identity | `0x...` hex address | `name.init` username |
-| Onboarding | MetaMask required | Google login |
-| Token onboarding | Complex bridge flow | Testnet faucet — mint USDC in one click |
-| Circle state | Multi-sig or custodial | Trustless on dedicated rollup |
-
-Every improvement is Initia-native. None of them are cosmetic.
-
----
-
-## Run Locally
-
-```bash
-git clone <repo> && cd kitpot
-bun install
-anvil &                  # start local chain
-export PRIVATE_KEY=<anvil-test-key>   # copy from anvil startup output
-bun run deploy:local     # deploys contracts + updates .env.local
-bun dev                  # open http://localhost:3000, select "Local" network
+  UI --> IK
+  IK -->|MsgCall via requestTxBlock<br/>or submitTxBlock| Node
+  IK -->|useUsernameQuery| Reg
+  IK -->|autoSign.enable| Authz
+  Circle --> Rep
+  Circle --> Ach
+  Circle --> USDC
+  Circle --> USDe
 ```
 
-For Initia testnet: switch to "Testnet" in the network switcher. Contracts are already deployed on kitpot-2 — no redeploy needed.
+## Native Initia integration (meaningful, not surface-level)
+
+| Feature | How we use it | Honest scope |
+|---|---|---|
+| **Auto-signing** (`autoSign.enable`, `submitTxBlock`) | Session ghost wallet + Cosmos `x/authz` + `x/feegrant`. Per-cycle deposits sign silently for the duration of the user's tab. | Session-based, **not** a server bot. Closing the tab ends the session. |
+| **`.init` usernames** (`useUsernameQuery`) | All identity in the UI (turn order, payment status, leaderboard, profile) resolves through Initia L1 username registry. | If wallet has no `.init` registered, we fall back honestly to truncated address. **No fake** username strings. |
+| **Interwoven Bridge** (`openDeposit`, `openWithdraw`) | Bidirectional bridge UI on the Faucet page, pre-filled with `initiation-2` ↔ `kitpot-2` for native `uinit`. | Modal currently shows "no available assets" because `kitpot-2` is not yet in the public chain registry. We document this in-product per official Initia docs guidance. Bridge logic is live; activating end-to-end transport is a roadmap item (OPinit bots + registry PR). |
+
+## Target users
+
+The first wedge is **diaspora communities and tight-knit workplace / religious / cultural groups** that already organize arisan over WhatsApp. They have the social fabric to enforce participation but bleed pots regularly to disappearing treasurers. Kitpot keeps their existing ritual intact and removes the single point of trust failure.
+
+Second wedge: **Web3-native users in emerging markets** who want a forced-savings tool that isn't yield speculation, doesn't require KYC, and gives them on-chain reputation they can carry to other dapps.
+
+## Business model
+
+| Stream | Mechanism | Status |
+|---|---|---|
+| Platform fee | 1% of every pot, kept in `accumulatedFees[token]`, owner-withdrawable | Live (configurable up to 5%) |
+| Late-payment penalty | 5% of contribution slashed from collateral on missed cycles | Live (configurable per circle) |
+| Keeper fee | 0.1% of pot to whoever calls `substituteClaim` after 7-day dormant grace | Live |
+| Premium circles (planned) | Higher contribution caps, custom branding, off-chain reminders, higher trust-tier gating | Roadmap |
+| Reputation-as-a-service (planned) | Other Initia dapps query `KitpotReputation` to gate access to higher-risk loans, NFT mints, governance | Roadmap |
+
+The fee model is symmetric to traditional ROSCA management fees (5–10% in many countries). At 1% we sit well below that — sustainable but not extractive.
+
+## Market opportunity
+
+- **300M+** people globally participate in rotating savings circles (World Bank Findex).
+- **$50B+/year** of informal savings flows through arisan/chit funds in Indonesia alone (central bank estimate).
+- The product fits markets where banking penetration is uneven, trust networks are tight, and the social punishment for breaking ROSCAs is high — meaning user retention curves on a digital ROSCA can resemble messaging apps more than savings apps.
+- **First mover** on Initia: no other ROSCA primitive deployed on the Initia ecosystem yet.
+
+## Why now
+
+- Initia mainnet is approaching; early protocols on a new ecosystem capture the most distribution.
+- Mobile-first social-login wallets (Privy + InterwovenKit) finally make on-chain savings accessible to non-crypto-native users — exactly the demographic that runs offline ROSCAs today.
+- Auto-signing as an Initia primitive removes the "approve every transaction" friction that has historically killed every recurring-payment dapp.
+
+## Competitive landscape
+
+| | Kitpot | CrediKye (Creditcoin) | Generic crypto wallet |
+|---|---|---|---|
+| Initia-native auto-sign | ✅ | ❌ | ❌ |
+| Initia `.init` username registry | ✅ | ❌ | ❌ |
+| Interwoven Bridge UI | ✅ (bidirectional) | ❌ | ❌ |
+| Multi-token circles | ✅ USDC + USDe + extensible | ❌ single token | n/a |
+| On-chain late penalty | ✅ collateral slash | ⚠️ off-chain points only | n/a |
+| Pull-claim + permissionless keeper | ✅ | ❌ | n/a |
+| Telegram mini-app | ❌ (roadmap) | ✅ Grammy bot | n/a |
+| Soulbound NFT badges | ✅ on-chain SVG | ✅ | n/a |
+| Own Initia rollup | ✅ kitpot-2 (minitiad) | n/a | n/a |
+
+The closest direct comparison (CrediKye) is on Creditcoin so we are not literally competing for the same INITIATE prize, but it is the most honest mirror of the product surface. Our advantage is depth of Initia integration; their advantage is mobile distribution. Both are correct strategies for their respective ecosystems.
+
+## Vision & roadmap
+
+Post-hackathon priorities:
+
+1. **Telegram mini-app + notifications** — a Grammy-based bot that nudges users when it's their turn to claim, when a deposit is due, or when a slash is about to happen. Lifts the pull-claim model from "user must check the dashboard" to "user gets nudged on the channel they actually live on".
+2. **Bridge transport live** — enable OPinit executor + challenger + IBC relayer on our public deployment and submit a registry PR for `kitpot-2`, so Bridge actually carries `uinit` between L1 and the rollup.
+3. **Server-side authz bot for offline auto-pay** — optional second auto-sign mode where users grant a Kitpot bot wallet `MsgExec` permission scoped to a single circle's deposit calls. Pays cycles even when the user is offline. Custody and key rotation become real concerns; we treat this as a proper product step, not a hack.
+4. **Real bridged stables (Noble USDC, sUSDe, etc.)** — drop MockUSDC / MockUSDe in favor of real bridged-in stables. Contract is already token-agnostic.
+5. **Reputation-as-a-service SDK** — let other Initia dapps gate features by Kitpot trust tier.
+6. **Mainnet launch with first community partner** — pilot with one diaspora group already running offline arisan.
+
+Guaranteed savings. Honest UX. Built for Initia.
 
 ---
 
-*Built for INITIATE: The Initia Hackathon (Season 1) · Track: Gaming & Consumer*
+**Full technical depth, deployed contract addresses, and step-by-step run instructions:** see [README.md in the repo](https://github.com/viandwi24/kitpot/blob/main/README.md).

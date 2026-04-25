@@ -1,33 +1,19 @@
-# Kitpot — Trustless Savings Circles on Initia
-
-> 500-year-old social savings ritual, on-chain, with the treasurer replaced by a smart contract.
-
-| | |
-|---|---|
-| **Live demo** | <https://kitpot.vercel.app> |
-| **Demo video** | _to be added_ |
-| **Track** | Gaming & Consumer |
-| **Rollup chain ID** | `kitpot-2` (EVM 64146729809684) |
-| **Hackathon** | INITIATE: The Initia Hackathon |
-
----
-
 ## Initia Hackathon Submission
 
 - **Project Name**: Kitpot
 
 ### Project Overview
 
-Kitpot is a trustless rotating savings circle (ROSCA / arisan / chit fund) built on its own Initia EVM rollup. Friends pool a fixed contribution every cycle; the smart contract picks one member each round to receive the entire pot, then advances to the next member, until everyone has been paid exactly once. It removes the centuries-old single point of trust failure — the treasurer who could disappear with everyone's money — by making both the deposit collection and the pot distribution executable on-chain code.
+Kitpot is a trustless rotating savings circle (ROSCA / arisan / chit fund) built on its own Initia EVM rollup — for the 300M+ people worldwide who already pool money with friends every cycle to take turns receiving the pot, but currently rely on a centuries-old single point of trust failure: a treasurer who could disappear with the money. Kitpot replaces the treasurer with a smart contract: deposit collection, late-payment penalties, pot distribution, and dormant-recipient safety nets are all executable on-chain code. The user-facing UX feels like "tap pay → done" because of Initia's native auto-signing, so the digital experience matches the off-chain ritual it ports.
 
 ### Implementation Detail
 
-- **The Custom Implementation**: A 5-contract Solidity protocol on Foundry. `KitpotCircle.sol` is the core ROSCA engine with multi-token support (any ERC20 — circles can be USDC, USDe, or any future bridged stable), configurable cycle duration / member count / late penalty, on-chain late-payment slashing from collateral, and (per plan 22) a pull-claim model where the recipient calls `claimPot()` themselves with a permissionless `substituteClaim()` safety net that any wallet can fire after a 7-day dormant grace (caller earns 0.1% as a keeper fee, pot still goes to the recipient). `KitpotReputation.sol` tracks XP + tiers (Bronze → Diamond) + daily quest streaks. `KitpotAchievements.sol` mints soulbound ERC721 badges with on-chain SVG metadata (no IPFS dependency). 102 Foundry tests pass across these contracts.
+- **The Custom Implementation**: A 5-contract Solidity protocol on Foundry. `KitpotCircle.sol` is the core ROSCA engine with multi-token support (any ERC20 — circles can be USDC, USDe, or any future bridged stable), configurable cycle duration / member count / late penalty, on-chain late-payment slashing from collateral, and a pull-claim model where the recipient calls `claimPot()` themselves with a permissionless `substituteClaim()` safety net that any wallet can fire after a 7-day dormant grace (caller earns 0.1% as a keeper fee, pot still goes to the recipient). `KitpotReputation.sol` tracks XP + tiers (Bronze → Diamond) + daily quest streaks. `KitpotAchievements.sol` mints soulbound ERC721 badges with on-chain SVG metadata (no IPFS). 102 Foundry tests pass across PullClaim, SubstituteClaim, TimeDeterminism, ConfigValidation, KitpotCircle, and KitpotReputation suites.
 
 - **The Native Feature**: Three Initia-native features are integrated meaningfully:
-  - **Auto-signing** (Cosmos `x/authz` + `x/feegrant` via InterwovenKit `autoSign.enable`) — once a member enables auto-sign on the kitpot-2 chain, all `MsgCall`-wrapped contract writes during that session are signed silently by a derived ghost wallet. No wallet popup per cycle deposit. **Honest scope:** this is a session-based primitive — when the user closes the tab, the ghost wallet key disappears. It is not a server-side bot; it removes friction during interactive use, not while the user is asleep.
-  - **`.init` Usernames** (`useUsernameQuery`) — every member identity in the UI (turn order, payment status, leaderboard, profile) is resolved through Initia's L1 username registry. No fake username strings; if the wallet has no `.init` registered, we fall back honestly to a truncated address.
-  - **Interwoven Bridge** (`openDeposit` + `openWithdraw`) — bidirectional bridge UI on the Faucet page, pre-filled with `initiation-2` ↔ `kitpot-2` for `uinit`. **Honest scope:** because `kitpot-2` is not yet in the public Initia chain registry, the bridge modal currently shows "No available assets" for fresh wallets. We document this caveat in-product per the official Initia hackathon docs guidance, and ship the integration so judges can verify the InterwovenKit bridge flow opens correctly with our chain pre-selected.
+  - **Auto-signing** (Cosmos `x/authz` + `x/feegrant` via InterwovenKit `autoSign.enable` + `submitTxBlock`) — once a member enables auto-sign on the kitpot-2 chain, all `MsgCall`-wrapped contract writes during that session sign silently by a derived ghost wallet. No popup per cycle deposit. **Honest scope:** this is a session-based primitive — when the user closes the tab the ghost wallet key disappears. It is not a server-side bot; it removes friction during interactive use, not while the user is asleep.
+  - **`.init` Usernames** (`useUsernameQuery`) — every member identity in the UI (turn order, payment status, leaderboard, profile) is resolved through Initia's L1 username registry. If the wallet has no `.init` registered, we fall back honestly to a truncated address — never fake `.init`-shaped strings.
+  - **Interwoven Bridge** (`openDeposit` + `openWithdraw`) — bidirectional bridge UI on the Faucet page, pre-filled with `initiation-2` ↔ `kitpot-2` for native `uinit`. **Honest scope:** because `kitpot-2` is not yet registered in Initia's public chain registry, the bridge modal currently returns "No available assets" for fresh wallets. We document this in-product per the official Initia hackathon docs guidance and ship the integration so judges can verify the InterwovenKit bridge flow opens correctly with our chain pre-selected.
 
 ### How to Run Locally
 
@@ -38,10 +24,10 @@ bun install
 
 # 2. Configure frontend env (point at our public testnet)
 cp apps/web/.env.example apps/web/.env.local
-# Defaults already point at https://kitpot-rpc.viandwi24.com — no edit needed
-# unless you want to run a local rollup via `weave init`.
+# Defaults already target https://kitpot-rpc.viandwi24.com — no edit needed
+# unless you want to spin up a local rollup via `weave init` first.
 
-# 3. Start the dev server
+# 3. Start the frontend
 cd apps/web && bun dev
 # Open http://localhost:3000, click Connect Wallet → Privy Google login
 
@@ -49,11 +35,23 @@ cd apps/web && bun dev
 cd ../contracts && forge test -vv
 ```
 
-Or skip steps 1-3 entirely and use the live deployment at <https://kitpot.vercel.app> — the auto-faucet on first connect drips GAS + 5,000 USDC + 5,000 USDe so you can immediately create or join a circle.
+Or skip steps 1–3 entirely and use the live deployment at <https://kitpot.vercel.app> — the auto-faucet on first connect drips GAS + 5,000 USDC + 5,000 USDe so you can immediately create or join a circle.
 
 ---
 
-# The deeper story
+# Kitpot — Trustless Savings Circles on Initia
+
+> The 500-year-old social savings ritual, on-chain, with the treasurer replaced by a smart contract.
+
+| | |
+|---|---|
+| **Live demo** | <https://kitpot.vercel.app> |
+| **Demo video** | _to be added_ |
+| **Track** | Gaming & Consumer |
+| **Rollup chain ID** | `kitpot-2` (EVM 64146729809684) |
+| **Hackathon** | INITIATE: The Initia Hackathon |
+
+---
 
 ## The problem
 
