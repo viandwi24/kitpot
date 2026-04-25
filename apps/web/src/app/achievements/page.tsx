@@ -15,7 +15,7 @@ const ACHIEVEMENT_DESCRIPTIONS = [
   "10 consecutive on-time payments",
   "25 consecutive on-time payments",
   "Create a circle that completes successfully",
-  "Join a circle with 500+ USDC contribution",
+  "Join a circle with 500+ stablecoin contribution",
   "Complete 5+ circles",
   "Achieve Diamond trust tier",
   "Join during the launch period",

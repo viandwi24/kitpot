@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TierBadge } from "@/components/reputation/tier-badge";
 import { formatUSDC } from "@/lib/utils";
-import type { CircleData } from "@/hooks/use-circles";
+import { getTokenSymbol, type CircleData } from "@/hooks/use-circles";
 
 const TIER_LABELS = ["None", "Bronze+", "Silver+", "Gold+", "Diamond"];
 
@@ -34,7 +34,7 @@ export function DiscoverCard({ circle }: { circle: CircleData }) {
         )}
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            {formatUSDC(circle.contributionAmount)} USDC/cycle · {circle.maxMembers.toString()} members
+            {formatUSDC(circle.contributionAmount)} {getTokenSymbol(circle.tokenAddress)}/cycle · {circle.maxMembers.toString()} members
           </span>
           <Button asChild size="sm">
             <Link href={`/join/${circle.id.toString()}`}>Join</Link>

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatUSDC } from "@/lib/utils";
-import type { CircleData, MemberData } from "@/hooks/use-circles";
+import { getTokenSymbol, type CircleData, type MemberData } from "@/hooks/use-circles";
 
 interface CircleHistoryProps {
   circle: CircleData;
@@ -35,7 +35,7 @@ export function CircleHistory({ circle, members }: CircleHistoryProps) {
                     {member?.initUsername || member?.addr.slice(0, 10) || "..."}
                   </span>
                 </div>
-                <span className="text-sm text-primary">{formatUSDC(payout)} USDC</span>
+                <span className="text-sm text-primary">{formatUSDC(payout)} {getTokenSymbol(circle.tokenAddress)}</span>
               </div>
             );
           })}

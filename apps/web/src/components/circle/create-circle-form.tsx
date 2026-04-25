@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useKitpotTx } from "@/hooks/use-kitpot-tx";
 import { parseUnits } from "viem";
 import { useReadContract } from "wagmi";
-import { CONTRACTS, USDC_DECIMALS } from "@/lib/contracts";
+import { CONTRACTS, USDC_DECIMALS, PAYMENT_TOKENS, type PaymentToken } from "@/lib/contracts";
 import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { useAccount } from "wagmi";
@@ -34,7 +34,7 @@ export function CreateCircleForm() {
   const router = useRouter();
   const { address: evmAddress } = useAccount();
   const { username } = useInterwovenKit();
-  const { createCircle, approveUSDC, isPending, error } = useKitpotTx();
+  const { createCircle, approveToken, isPending, error } = useKitpotTx();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -45,17 +45,19 @@ export function CreateCircleForm() {
   const [isPublic, setIsPublic] = useState(true);
   const [minimumTier, setMinimumTier] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<PaymentToken>(PAYMENT_TOKENS[0]);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const collateralNeeded = parseUnits(contributionAmount || "0", USDC_DECIMALS);
+  // TODO: if a future token has different decimals, use selectedToken.decimals here
+  const collateralNeeded = parseUnits(contributionAmount || "0", selectedToken.decimals);
   const initUsername = username ? `${username}` : (evmAddress ? truncateAddress(evmAddress) : "");
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: CONTRACTS.mockUSDC,
-    abi: MOCK_USDC_ABI,
+    address: selectedToken.address,
+    abi: MOCK_USDC_ABI, // same ABI shape for all mock ERC20s
     functionName: "allowance",
     args: evmAddress ? [evmAddress, CONTRACTS.kitpotCircle] : undefined,
     query: { enabled: !!evmAddress },
@@ -69,12 +71,13 @@ export function CreateCircleForm() {
     setSubmitError(null);
     try {
       if (needsApproval) {
-        await approveUSDC(CONTRACTS.kitpotCircle);
+        await approveToken(selectedToken.address, CONTRACTS.kitpotCircle);
         await refetchAllowance();
       }
       await createCircle({
         name,
         description,
+        paymentToken: selectedToken.address,
         contributionAmount: collateralNeeded,
         maxMembers: BigInt(maxMembers),
         cycleDuration: BigInt(cycleDuration),
@@ -99,9 +102,9 @@ export function CreateCircleForm() {
   const isBusy = submitting || isPending;
 
   function buttonLabel() {
-    if (submitting && needsApproval) return "Approving USDC...";
+    if (submitting && needsApproval) return `Approving ${selectedToken.symbol}...`;
     if (submitting || isPending) return "Creating circle...";
-    if (needsApproval) return "Approve USDC & Create";
+    if (needsApproval) return `Approve ${selectedToken.symbol} & Create`;
     return "Create Circle";
   }
 
@@ -137,7 +140,24 @@ export function CreateCircleForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount">Contribution per Cycle (USDC)</Label>
+            <Label>Payment Token</Label>
+            <div className="flex gap-2">
+              {PAYMENT_TOKENS.map((token) => (
+                <Button
+                  key={token.symbol}
+                  type="button"
+                  variant={selectedToken.symbol === token.symbol ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedToken(token)}
+                >
+                  {token.symbol}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="amount">Contribution per Cycle ({selectedToken.symbol})</Label>
             <Input
               id="amount"
               type="number"
@@ -230,17 +250,17 @@ export function CreateCircleForm() {
 
           <div className="rounded-2xl bg-secondary p-4 text-sm space-y-1">
             <p>
-              <strong>Summary:</strong> {maxMembers} members x {contributionAmount} USDC ={" "}
-              <strong>{Number(contributionAmount) * maxMembers} USDC</strong> per pot
+              <strong>Summary:</strong> {maxMembers} members x {contributionAmount} {selectedToken.symbol} ={" "}
+              <strong>{Number(contributionAmount) * maxMembers} {selectedToken.symbol}</strong> per pot
             </p>
-            <p className="text-muted-foreground">Collateral: {contributionAmount} USDC (returned after completion)</p>
+            <p className="text-muted-foreground">Collateral: {contributionAmount} {selectedToken.symbol} (returned after completion)</p>
             <p className="text-muted-foreground">Late penalty: 5% of contribution per late payment</p>
             <p className="text-muted-foreground">Platform fee: 1% per pot</p>
           </div>
 
           {needsApproval && !isBusy && (
             <p className="text-xs text-muted-foreground text-center">
-              First time: will ask you to approve USDC, then create circle in one flow.
+              First time: will ask you to approve {selectedToken.symbol}, then create circle in one flow.
             </p>
           )}
 

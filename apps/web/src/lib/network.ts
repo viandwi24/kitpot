@@ -9,6 +9,7 @@ export interface NetworkConfig {
   contracts: {
     kitpotCircle: `0x${string}`;
     mockUSDC: `0x${string}`;
+    mockUSDe: `0x${string}`;
     reputation: `0x${string}`;
     achievements: `0x${string}`;
   };
@@ -26,6 +27,7 @@ export function getNetworkConfig(): NetworkConfig {
     contracts: {
       kitpotCircle: (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? "0x") as `0x${string}`,
       mockUSDC: (process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "0x") as `0x${string}`,
+      mockUSDe: (process.env.NEXT_PUBLIC_USDE_ADDRESS ?? "0x") as `0x${string}`,
       reputation: (process.env.NEXT_PUBLIC_REPUTATION_ADDRESS ?? "0x") as `0x${string}`,
       achievements: (process.env.NEXT_PUBLIC_ACHIEVEMENTS_ADDRESS ?? "0x") as `0x${string}`,
     },

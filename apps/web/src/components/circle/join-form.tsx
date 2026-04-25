@@ -10,7 +10,7 @@ import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { formatUSDC, truncateAddress } from "@/lib/utils";
 import { CONTRACTS } from "@/lib/contracts";
-import type { CircleData } from "@/hooks/use-circles";
+import { getTokenSymbol, type CircleData } from "@/hooks/use-circles";
 
 interface JoinFormProps {
   circleId: bigint;
@@ -21,7 +21,8 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
   const router = useRouter();
   const { address: evmAddress } = useAccount();
   const { username } = useInterwovenKit();
-  const { joinCircle, approveUSDC, isPending, error } = useKitpotTx();
+  const { joinCircle, approveToken, isPending, error } = useKitpotTx();
+  const tokenSymbol = getTokenSymbol(circle.tokenAddress);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -31,8 +32,8 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
   const initUsername = username ? `${username}` : (evmAddress ? truncateAddress(evmAddress) : "");
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: CONTRACTS.mockUSDC,
-    abi: MOCK_USDC_ABI,
+    address: circle.tokenAddress,
+    abi: MOCK_USDC_ABI, // same ABI shape for all mock ERC20s
     functionName: "allowance",
     args: evmAddress ? [evmAddress, CONTRACTS.kitpotCircle] : undefined,
     query: { enabled: !!evmAddress },
@@ -49,8 +50,8 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
     setSubmitError(null);
     try {
       if (needsApproval) {
-        setStatusMsg("Approving USDC...");
-        await approveUSDC(CONTRACTS.kitpotCircle);
+        setStatusMsg(`Approving ${tokenSymbol}...`);
+        await approveToken(circle.tokenAddress, CONTRACTS.kitpotCircle);
         await refetchAllowance();
       }
       setStatusMsg("Joining circle...");
@@ -79,11 +80,11 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
         <div className="rounded-xl bg-secondary/40 p-4 space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Contribution</span>
-            <span className="font-medium">{formatUSDC(circle.contributionAmount)} USDC / cycle</span>
+            <span className="font-medium">{formatUSDC(circle.contributionAmount)} {tokenSymbol} / cycle</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Collateral required</span>
-            <span className="font-medium">{formatUSDC(circle.contributionAmount)} USDC</span>
+            <span className="font-medium">{formatUSDC(circle.contributionAmount)} {tokenSymbol}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Members</span>
@@ -92,14 +93,14 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
           <div className="flex justify-between">
             <span className="text-muted-foreground">Total pot</span>
             <span className="font-semibold text-primary">
-              {formatUSDC(circle.contributionAmount * circle.maxMembers)} USDC
+              {formatUSDC(circle.contributionAmount * circle.maxMembers)} {tokenSymbol}
             </span>
           </div>
         </div>
 
         {needsApproval && !submitting && (
           <p className="text-xs text-muted-foreground text-center">
-            First time: will approve USDC then join automatically.
+            First time: will approve {tokenSymbol} then join automatically.
           </p>
         )}
 

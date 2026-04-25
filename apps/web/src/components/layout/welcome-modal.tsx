@@ -19,7 +19,7 @@ interface ActionCard {
 const ACTION_CARDS: ActionCard[] = [
   { icon: "💰", title: "Create a Circle", description: "Start a savings group with friends. Set amount, members, and cycle duration.", href: "/circles/new" },
   { icon: "🔍", title: "Explore Circles", description: "Browse and join public savings circles.", href: "/discover" },
-  { icon: "🌉", title: "Bridge USDC", description: "Deposit USDC from Initia hub to start saving.", href: "/bridge" },
+  { icon: "🌉", title: "Get Tokens", description: "Mint test stablecoins or bridge from Initia hub.", href: "/bridge" },
 ];
 
 export function WelcomeModal({ open, onClose }: WelcomeModalProps) {

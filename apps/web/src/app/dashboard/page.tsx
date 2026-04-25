@@ -5,7 +5,7 @@ import { Wallet, Star, CheckCircle, Trophy, Search, User, ArrowLeftRight, Plus, 
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits } from "viem";
 import { useReputation, TIER_NAMES, TIER_COLORS, LEVEL_NAMES, LEVEL_XP_THRESHOLDS } from "@/hooks/use-reputation";
-import { useCircleCount, useMyCircles } from "@/hooks/use-circles";
+import { useCircleCount, useMyCircles, getTokenSymbol } from "@/hooks/use-circles";
 import { useAchievementTokenIds, ACHIEVEMENT_NAMES, ACHIEVEMENT_ICONS } from "@/hooks/use-achievements";
 import { LevelBadge } from "@/components/gamification/level-badge";
 import { StreakFlame } from "@/components/gamification/streak-flame";
@@ -86,7 +86,7 @@ function ActiveCircleCard({ circleId }: { circleId: bigint }) {
           <span className={`h-2 w-2 rounded-full ${STATUS_DOT[status] ?? "bg-muted-foreground"}`} />
           <div>
             <p className="font-medium text-sm">{circle.name}</p>
-            <p className="text-xs text-muted-foreground">{contribution} USDC · Cycle {progress}</p>
+            <p className="text-xs text-muted-foreground">{contribution} {getTokenSymbol(circle.tokenAddress)} · Cycle {progress}</p>
           </div>
         </div>
         <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">View →</span>
@@ -274,7 +274,7 @@ export default function DashboardPage() {
               {[
                 { label: "Payments", value: rep.totalCyclesPaid.toString() },
                 { label: "Missed", value: rep.totalCyclesMissed.toString() },
-                { label: "Pot Received", value: `${formatUSDC(rep.totalPotReceived)} USDC` },
+                { label: "Pot Received", value: formatUSDC(rep.totalPotReceived) },
               ].map((s) => (
                 <div key={s.label} className="text-center">
                   <div className="font-bold">{s.value}</div>

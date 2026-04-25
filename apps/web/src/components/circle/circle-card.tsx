@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatUSDC } from "@/lib/utils";
-import type { CircleData } from "@/hooks/use-circles";
+import { getTokenSymbol, type CircleData } from "@/hooks/use-circles";
 
 const STATUS_LABELS: Record<number, { label: string; variant: "default" | "secondary" | "success" }> = {
   0: { label: "Forming", variant: "secondary" },
@@ -24,7 +24,7 @@ export function CircleCard({ circle }: { circle: CircleData }) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            {formatUSDC(circle.contributionAmount)} USDC x {circle.maxMembers.toString()} members
+            {formatUSDC(circle.contributionAmount)} {getTokenSymbol(circle.tokenAddress)} x {circle.maxMembers.toString()} members
           </p>
           <p className="text-sm text-muted-foreground">
             {circle.status === 1

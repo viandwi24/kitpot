@@ -6,7 +6,7 @@ import { useCurrentCycleInfo } from "@/hooks/use-circle-dashboard";
 import { formatUSDC } from "@/lib/utils";
 import { DepositButton } from "./deposit-button";
 import { AdvanceCycleButton } from "./advance-cycle-button";
-import type { CircleData, MemberData } from "@/hooks/use-circles";
+import { getTokenSymbol, type CircleData, type MemberData } from "@/hooks/use-circles";
 
 interface CurrentCycleProps {
   circle: CircleData;
@@ -46,7 +46,7 @@ export function CurrentCycle({ circle, members, circleId, userAddress }: Current
           <div>
             <p className="text-muted-foreground">Total Pot</p>
             <p className="font-medium">
-              {formatUSDC(totalPot)} USDC
+              {formatUSDC(totalPot)} {getTokenSymbol(circle.tokenAddress)}
               <span className="text-xs text-muted-foreground"> (- {formatUSDC(fee)} fee)</span>
             </p>
           </div>

@@ -75,7 +75,7 @@ export default function CircleDetailPage({ params }: { params: Promise<{ id: str
             Enable <strong>auto-sign</strong> in the header to pay cycle deposits without manual confirmation.
             InterwovenKit handles session keys natively via Cosmos authz + feegrant.
             <br />
-            Need more USDC? Visit the <Link href="/bridge" className="underline text-foreground">Faucet</Link>.
+            Need more tokens? Visit the <Link href="/bridge" className="underline text-foreground">Faucet</Link>.
           </div>
         </>
       )}

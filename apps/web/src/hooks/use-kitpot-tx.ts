@@ -72,6 +72,35 @@ export function useKitpotTx() {
     error,
     autoSignEnabled: autoSign?.isEnabledByChain[CHAIN_ID] ?? false,
 
+    // ── Token-generic helpers ──
+
+    /** Approve any ERC20 token for a spender. */
+    approveToken: (tokenAddress: `0x${string}`, spender: `0x${string}`, amount = maxUint256) =>
+      send([
+        msgCall(
+          tokenAddress,
+          MOCK_USDC_ABI as Abi, // same ABI shape for all ERC20 mocks
+          "approve",
+          [spender, amount],
+          initiaAddress!,
+        ),
+      ]),
+
+    /** Mint any mock ERC20 token (testnet only). */
+    mintToken: (tokenAddress: `0x${string}`, to: `0x${string}`, amount: bigint) =>
+      send([
+        msgCall(
+          tokenAddress,
+          MOCK_USDC_ABI as Abi,
+          "mint",
+          [to, amount],
+          initiaAddress!,
+        ),
+      ]),
+
+    // ── Backward-compat wrappers (existing callers keep working) ──
+
+    /** @deprecated Use approveToken(CONTRACTS.mockUSDC, spender, amount) */
     approveUSDC: (spender: `0x${string}`, amount = maxUint256) =>
       send([
         msgCall(
@@ -86,6 +115,7 @@ export function useKitpotTx() {
     createCircle: (p: {
       name: string;
       description: string;
+      paymentToken?: `0x${string}`;
       contributionAmount: bigint;
       maxMembers: bigint;
       cycleDuration: bigint;
@@ -103,7 +133,7 @@ export function useKitpotTx() {
           [
             p.name,
             p.description,
-            CONTRACTS.mockUSDC,
+            p.paymentToken ?? CONTRACTS.mockUSDC,
             p.contributionAmount,
             p.maxMembers,
             p.cycleDuration,
@@ -161,6 +191,7 @@ export function useKitpotTx() {
         ),
       ]),
 
+    /** @deprecated Use mintToken(CONTRACTS.mockUSDC, to, amount) */
     mintTestUSDC: (to: `0x${string}`, amount: bigint) =>
       send([
         msgCall(

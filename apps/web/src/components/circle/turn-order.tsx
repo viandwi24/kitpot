@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatUSDC } from "@/lib/utils";
 import { InitUsername } from "@/components/username/init-username";
-import type { CircleData, MemberData } from "@/hooks/use-circles";
+import { getTokenSymbol, type CircleData, type MemberData } from "@/hooks/use-circles";
 
 interface TurnOrderProps {
   circle: CircleData;
@@ -46,7 +46,7 @@ export function TurnOrder({ circle, members }: TurnOrderProps) {
                   />
                 </div>
                 <span className="text-xs">
-                  {isCompleted && <span className="text-primary">Received {formatUSDC(payout)} USDC</span>}
+                  {isCompleted && <span className="text-primary">Received {formatUSDC(payout)} {getTokenSymbol(circle.tokenAddress)}</span>}
                   {isCurrent && <span className="font-medium text-primary">Current</span>}
                   {isUpcoming && <span className="text-muted-foreground">Upcoming</span>}
                 </span>

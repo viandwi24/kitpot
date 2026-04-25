@@ -103,11 +103,11 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
         <CardContent className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Total Contributed</span>
-            <span>{formatUSDC(rep.totalContributed)} USDC</span>
+            <span>{formatUSDC(rep.totalContributed)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Total Pot Received</span>
-            <span>{formatUSDC(rep.totalPotReceived)} USDC</span>
+            <span>{formatUSDC(rep.totalPotReceived)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Circles Joined</span>

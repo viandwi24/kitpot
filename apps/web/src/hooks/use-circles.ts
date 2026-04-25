@@ -2,7 +2,7 @@
 
 import { useReadContract, useReadContracts } from "wagmi";
 import { KITPOT_ABI } from "@/lib/abi/KitpotCircle";
-import { CONTRACTS } from "@/lib/contracts";
+import { CONTRACTS, PAYMENT_TOKENS } from "@/lib/contracts";
 
 export interface CircleData {
   id: bigint;
@@ -30,6 +30,14 @@ export interface MemberData {
   joinedAt: bigint;
   hasReceivedPot: boolean;
   turnOrder: bigint;
+}
+
+/** Resolve a payment token address to its symbol. Falls back to "TOKEN" if unknown. */
+export function getTokenSymbol(tokenAddress: `0x${string}`): string {
+  const found = PAYMENT_TOKENS.find(
+    (t) => t.address.toLowerCase() === tokenAddress.toLowerCase(),
+  );
+  return found?.symbol ?? "TOKEN";
 }
 
 export function useCircleCount() {
