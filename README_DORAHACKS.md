@@ -96,6 +96,18 @@ Kitpot is a rotating savings circle where the treasurer is a smart contract.
 
 The frontend talks to the rollup exclusively through InterwovenKit, which routes every contract write as an Initia-native `/minievm.evm.v1.MsgCall` envelope — going through `requestTxBlock` for manual signing or `submitTxBlock` once auto-sign is enabled. Username resolution and auto-sign authorization grants live on Initia L1 and are queried via the same SDK.
 
+## Deployed on kitpot-2
+
+| Contract | Address |
+|---|---|
+| `KitpotCircle` | `0x7526CE9959756Fb5fc5e4431999A2660eEd8cD86` |
+| `MockUSDC` | `0xa157C9fB56A2929D30d5EBe9442Ab669D5943Df1` |
+| `MockUSDe` | `0x25a9e7ff5949c25cd28715340dfde84035ff7b3d` |
+| `KitpotReputation` | `0x24b0D1B543dCC017e662Cb2F70E67C3895506d82` |
+| `KitpotAchievements` | `0x97E36B91ccea9d6dBFB606fD822286f58978eDaB` |
+
+➜ **Live status of every contract + RPC + chain config (with copy buttons and live ping):** <https://kitpot.vercel.app/about>
+
 ## Native Initia integration (meaningful, not surface-level)
 
 | Feature | How we use it | Honest scope |

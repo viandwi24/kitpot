@@ -316,6 +316,8 @@ To our knowledge, **Kitpot is the first on-chain rotating-savings-circle primiti
 | `KitpotReputation` | `0x24b0D1B543dCC017e662Cb2F70E67C3895506d82` | XP / tier / streak / quest bookkeeping |
 | `KitpotAchievements` | `0x97E36B91ccea9d6dBFB606fD822286f58978eDaB` | Soulbound ERC721 badges with on-chain SVG |
 
+➜ **Live status of every contract + RPC + chain config (with copy buttons and live ping):** <https://kitpot.vercel.app/about>
+
 You can verify any contract has live bytecode without trusting our UI:
 
 ```bash
