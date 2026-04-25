@@ -102,18 +102,23 @@ async function main() {
   }
 
   // Step 4: each calls joinCircle
+  // Pass truncated wallet address as initUsername — NOT a fake "alice.init"
+  // string. The contract only requires `bytes(initUsername).length > 0`; the
+  // actual .init resolution happens via Initia L1 registry (useUsernameQuery)
+  // in the UI, so passing fake `.init` strings here would mislead viewers.
   console.log(`\n[4/4] Joining circle #${circleId}…`);
-  for (const [name, wal, username] of [
-    ["Alice", wAlice, "alice.init"],
-    ["Bob", wBob, "bob.init"],
+  for (const [name, wal, addr] of [
+    ["Alice", wAlice, alice.address],
+    ["Bob", wBob, bob.address],
   ] as const) {
+    const displayName = `${addr.slice(0, 6)}…${addr.slice(-4)}`;
     const tx = await wal.writeContract({
       address: deployed.KitpotCircle,
       abi: KITPOT_ABI,
       functionName: "joinCircle",
-      args: [circleId, username],
+      args: [circleId, displayName],
     });
-    await send(`${name} joins as "${username}"`, tx);
+    await send(`${name} joins as "${displayName}"`, tx);
   }
 
   console.log("\n✅ Done. Circle should now be Active (3/3 members).");

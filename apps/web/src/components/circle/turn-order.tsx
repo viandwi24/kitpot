@@ -39,9 +39,12 @@ export function TurnOrder({ circle, members }: TurnOrderProps) {
                   <span className="text-xs text-muted-foreground">
                     Cycle {(cycleIndex + 1n).toString()}
                   </span>
+                  {/* Trust only the real Initia L1 username registry — never
+                      pass member.initUsername as a fallback because it is a
+                      self-claimed string the user typed at join time and may
+                      not actually be a registered .init name. */}
                   <InitUsername
                     address={member.addr}
-                    fallback={member.initUsername || undefined}
                     className="text-sm font-medium"
                   />
                 </div>

@@ -26,9 +26,12 @@ export function PaymentStatus({ circleId, members }: PaymentStatusProps) {
             const paid = paidStatuses[i] ?? false;
             return (
               <div key={member.addr} className="flex items-center justify-between rounded-xl bg-secondary px-4 py-2.5">
+                {/* Trust only the real Initia L1 username registry — never
+                    pass member.initUsername as a fallback because it is a
+                    self-claimed string the user typed at join time and may
+                    not actually be a registered .init name. */}
                 <InitUsername
                   address={member.addr}
-                  fallback={member.initUsername || undefined}
                   className="text-sm font-medium"
                 />
                 <span className={`text-sm ${paid ? "text-primary" : "text-muted-foreground"}`}>
