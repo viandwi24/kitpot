@@ -44,6 +44,26 @@ Follow these rules for EVERY change:
 - OpenZeppelin v5: ReentrancyGuard, SafeERC20, Ownable, Pausable
 - `contracts/` uses Foundry toolchain — never `bun add` inside it
 
+### Deploy rules — ALWAYS use `scripts/sync-deploy.sh`
+
+**NEVER run `forge script script/Deploy.s.sol --broadcast` directly.** Doing so leaves the frontend env vars (Vercel + `apps/web/.env.local` + `scripts/test/config.ts` + `scripts/test/.deployed.json`) pointing at orphaned/dead contract addresses and silently breaks `/dashboard`, `/leaderboard`, `/discover`, faucet balances, and reputation queries — without any compile-time error.
+
+The contract redeploy + full env sync flow MUST go through:
+
+```bash
+export PRIVATE_KEY=0x<operator-key>
+./scripts/sync-deploy.sh             # core 4 contracts only
+DEPLOY_MOCK_USDE=1 ./scripts/sync-deploy.sh   # also redeploy MockUSDe
+```
+
+This script:
+1. Runs `forge script Deploy.s.sol --broadcast` and parses new addresses.
+2. Updates `apps/web/.env.local`, `scripts/test/.deployed.json`, and the testnet block in `scripts/test/config.ts`.
+3. Syncs Vercel env vars via `vercel env` CLI if installed/linked, otherwise prints a paste-ready block.
+4. Reminds you to redeploy Vercel without build cache.
+
+WARNING: redeploying contracts WIPES on-chain state (existing circles, NFT badges, reputation entries lost). Don't redeploy unless you genuinely want a clean slate. To verify whether a redeploy is needed, run `cast call <contract> "ownerOf(uint256)" 0 --rpc-url <rpc>` first — if it returns data, the contract is alive and you should just update env vars to match.
+
 ---
 
 ## Project Context Map

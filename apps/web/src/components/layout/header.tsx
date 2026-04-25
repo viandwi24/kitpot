@@ -25,6 +25,7 @@ const NAV_LINKS: NavLink[] = [
   { href: "/discover", label: "Discover" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/bridge", label: "Faucet" },
+  { href: "/about", label: "About" },
   { href: "/dashboard", label: "My Dashboard", authOnly: true },
   { href: "/circles", label: "My Circles", authOnly: true },
   { href: "/achievements", label: "Badges", authOnly: true },
