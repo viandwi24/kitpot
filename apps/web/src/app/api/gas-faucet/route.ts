@@ -178,10 +178,11 @@ export async function POST(req: NextRequest) {
     let stablecoinMints: Record<string, { tx: string; amount: string } | { error: string }> = {};
     if (receiverHex) {
       const { client, account } = getViemClient(mnemonic);
-      const [usdcResult, usdeResult] = await Promise.all([
-        mintToken(client, account, USDC_ADDRESS, receiverHex),
-        mintToken(client, account, USDE_ADDRESS, receiverHex),
-      ]);
+      // SEQUENTIAL, not Promise.all — both txs share the same operator nonce,
+      // so parallel sends race the nonce manager and the second tx 500s with
+      // "Missing or invalid parameters". Serial wait keeps nonce monotonic.
+      const usdcResult = await mintToken(client, account, USDC_ADDRESS, receiverHex);
+      const usdeResult = await mintToken(client, account, USDE_ADDRESS, receiverHex);
       stablecoinMints = { usdc: usdcResult, usde: usdeResult };
     }
 
