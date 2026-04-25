@@ -64,36 +64,37 @@ Kitpot is a rotating savings circle where the treasurer is a smart contract.
 
 ## Architecture
 
-```mermaid
-graph LR
-  subgraph Browser
-    UI["Next.js + React<br/>kitpot.vercel.app"]
-    IK[InterwovenKit SDK]
-  end
-
-  subgraph "Initia L1 (initiation-2)"
-    Reg[".init Username Registry"]
-    Authz["x/authz + x/feegrant<br/>auto-sign grants"]
-  end
-
-  subgraph "Kitpot rollup (kitpot-2)"
-    Node["minitiad MiniEVM node"]
-    Circle["KitpotCircle.sol<br/>ROSCA + pull-claim + keeper"]
-    Rep["KitpotReputation.sol<br/>XP / tier / streak"]
-    Ach["KitpotAchievements.sol<br/>soulbound NFT, on-chain SVG"]
-    USDC[MockUSDC]
-    USDe[MockUSDe]
-  end
-
-  UI --> IK
-  IK -->|"MsgCall via requestTxBlock<br/>or submitTxBlock"| Node
-  IK -->|useUsernameQuery| Reg
-  IK -->|autoSign.enable| Authz
-  Circle --> Rep
-  Circle --> Ach
-  Circle --> USDC
-  Circle --> USDe
 ```
+┌──────────────────────────────────┐         ┌──────────────────────────────┐
+│  Browser                         │         │  Initia L1 (initiation-2)    │
+│  ┌────────────────────────────┐  │ query   │  ┌────────────────────────┐  │
+│  │ Next.js + React            │  ├────────►│  │ .init Username Registry│  │
+│  │ kitpot.vercel.app          │  │         │  └────────────────────────┘  │
+│  └──────────┬─────────────────┘  │ enable  │  ┌────────────────────────┐  │
+│             │                    ├────────►│  │ x/authz + x/feegrant   │  │
+│  ┌──────────▼─────────────────┐  │         │  │ (auto-sign grants)     │  │
+│  │ InterwovenKit SDK          │  │         │  └────────────────────────┘  │
+│  └──────────┬─────────────────┘  │         └──────────────────────────────┘
+└─────────────┼────────────────────┘
+              │ MsgCall via requestTxBlock or submitTxBlock
+              ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Kitpot rollup (kitpot-2)  ·  minitiad MiniEVM node                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │ KitpotCircle.sol  —  ROSCA engine + pull-claim + permissionless     │ │
+│  │                       keeper safety net                             │ │
+│  └────────┬────────────────────────────────┬───────────────┬───────────┘ │
+│           │ writes XP / payments           │ mints badges  │ transfers   │
+│           ▼                                ▼               ▼             │
+│  ┌──────────────────┐  ┌────────────────────────┐  ┌────────────────┐    │
+│  │ KitpotReputation │  │ KitpotAchievements     │  │ MockUSDC       │    │
+│  │ XP / tier /      │  │ Soulbound ERC721,      │  │ MockUSDe       │    │
+│  │ streak           │  │ on-chain SVG metadata  │  │ (any ERC20)    │    │
+│  └──────────────────┘  └────────────────────────┘  └────────────────┘    │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+The frontend talks to the rollup exclusively through InterwovenKit, which routes every contract write as an Initia-native `/minievm.evm.v1.MsgCall` envelope — going through `requestTxBlock` for manual signing or `submitTxBlock` once auto-sign is enabled. Username resolution and auto-sign authorization grants live on Initia L1 and are queried via the same SDK.
 
 ## Native Initia integration (meaningful, not surface-level)
 
