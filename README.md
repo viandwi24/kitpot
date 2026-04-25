@@ -113,6 +113,39 @@ The interesting part is not the contract math — chit-fund mechanics are well u
               initial deposit back (minus any late-payment slashes).
 ```
 
+## Gamification (the part that keeps people coming back)
+
+Off-chain ROSCAs already work because of social pressure: nobody wants to be the friend who broke the chain. Kitpot extends that into a portable on-chain reputation layer so users earn something they can actually carry between circles, between dapps, and forward into the broader Initia ecosystem.
+
+**12 soulbound achievement NFTs** (`KitpotAchievements.sol` — ERC721 with `_update` blocked, awarded automatically by `KitpotCircle` when a milestone is hit; **on-chain SVG metadata, no IPFS dependency**, the image renders inline from `tokenURI`):
+
+| Badge | Trigger |
+|---|---|
+| First Circle | First time joining any circle |
+| First Pot | First time receiving a pot payout |
+| Circle Complete | First circle that ran end-to-end |
+| Perfect Circle | Completed a circle with zero missed payments |
+| Streak 3 / 10 / 25 | 3 / 10 / 25 consecutive on-time payments |
+| Circle Creator | Created a circle that completed successfully |
+| High Roller | Joined a circle with 500+ stablecoin contribution |
+| Veteran | Completed 5 or more circles |
+| Diamond | Reached Diamond trust tier |
+| Early Adopter | Joined Kitpot during the launch window |
+
+**5 trust tiers** (`KitpotReputation.sol` — derived from XP, missed-payment ratio, total cycles completed):
+
+```
+Unranked  →  Bronze  →  Silver  →  Gold  →  Diamond
+```
+
+Tiers are not just decorative. Circle creators can require a **minimum trust tier** at create time (`minimumTier` field on `createCircle`), so high-value circles can fence themselves off from members with no track record. This is the on-chain version of "we only invite people we've already done arisan with for years".
+
+**XP system + daily quest streaks** — `claimDailyQuest` on the reputation contract gives a small XP bump each day a user shows up. Every on-time payment, every completed circle, every received pot also issues XP. Users level 0 → 5 visible in profile + leaderboard.
+
+**Leaderboards** — public ranking on three axes: total XP, circles completed, longest streak. Filterable by track tier.
+
+All gamification state is **on-chain, permissionless, and authored by `KitpotCircle.sol`** — no off-chain backend awarding badges, no admin who can hand out reputation. If you completed a perfect circle, the contract minted you the badge atomically with the last `claimPot()`.
+
 ## Architecture
 
 ### System layout

@@ -62,6 +62,18 @@ Kitpot is a rotating savings circle where the treasurer is a smart contract.
 6. **Keeper safety net** — If the recipient is dormant for 7 more days, `substituteClaim()` unlocks for the public. Pot still lands at the recipient's wallet; the keeper earns 0.1% for unsticking.
 7. **Complete** — When every member has been the recipient once, status → Completed. Each member calls `claimCollateral()` to get their initial deposit back (minus any late-payment slashes).
 
+## Gamification (the part that keeps people coming back)
+
+Off-chain ROSCAs already work because of social pressure: nobody wants to be the friend who broke the chain. Kitpot extends that into a portable on-chain reputation layer so users earn something they can actually carry between circles, between dapps, and forward into the broader Initia ecosystem.
+
+- **12 soulbound achievement NFTs** (`KitpotAchievements.sol` — ERC721 with transfer disabled, **on-chain SVG metadata, no IPFS dependency**). Awarded automatically by the contract when milestones hit: First Circle, First Pot, Circle Complete, Perfect Circle (zero missed payments), Streak 3 / 10 / 25, Circle Creator, High Roller, Veteran (5+ circles), Diamond, Early Adopter.
+- **5 trust tiers** — Unranked → Bronze → Silver → Gold → Diamond, derived on-chain from XP, missed-payment ratio, total cycles completed.
+- **Tier-gated circles** — circle creators can require a `minimumTier` at create time, so high-value circles fence themselves off from members with no track record. The on-chain version of "we only invite people we've already done arisan with for years."
+- **XP + daily quest streaks** — every on-time payment, every completed circle, every received pot, plus a daily `claimDailyQuest` issues XP. Users level 0 → 5 visible in profile and leaderboard.
+- **Leaderboards** — public ranking on total XP, circles completed, and longest streak.
+
+All gamification state is on-chain, permissionless, and authored by `KitpotCircle.sol` — no off-chain backend awarding badges, no admin who can hand out reputation. If you completed a perfect circle, the contract minted you the badge atomically with the last `claimPot()`.
+
 ## Architecture
 
 ```
