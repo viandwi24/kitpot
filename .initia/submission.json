@@ -1,7 +1,7 @@
 {
   "project_name": "Kitpot",
   "repo_url": "https://github.com/viandwi24/kitpot",
-  "commit_sha": "<fill-at-submit-time>",
+  "commit_sha": "79f768841fcc42e8cbfd548f5778c787eeea341e",
   "rollup_chain_id": "kitpot-2",
   "deployed_address": "0x7526CE9959756Fb5fc5e4431999A2660eEd8cD86",
   "vm": "evm",
