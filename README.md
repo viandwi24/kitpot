@@ -206,21 +206,21 @@ The next cycle's deadline is computed as `prevStart + cycleDuration`, **not** `b
 sequenceDiagram
   participant U as User browser
   participant IK as InterwovenKit SDK
-  participant L1 as Initia L1 (authz + feegrant modules)
+  participant L1 as Initia L1
   participant K as kitpot-2 rollup
 
-  U->>IK: autoSign.enable("kitpot-2")
+  U->>IK: autoSign.enable kitpot-2
   IK->>U: derive ghost wallet from user signature
   IK->>U: sign authz grant + feegrant grant
   U->>L1: broadcast MsgGrantAllowance + MsgGrant
-  L1-->>IK: indexed (~60s on single-validator testnet)
-  IK->>U: toggle "Auto-sign ON"
+  L1-->>IK: indexed after about 60s on single-validator testnet
+  IK->>U: toggle Auto-sign ON
   loop For each subsequent tx this session
-    U->>IK: deposit() / claimPot() / approveToken()
-    IK->>K: submitTxBlock — ghost wallet signs MsgExec wrapping MsgCall
-    K-->>U: receipt — no popup
+    U->>IK: deposit, claimPot or approveToken
+    IK->>K: submitTxBlock with ghost wallet signing MsgExec wrapping MsgCall
+    K-->>U: receipt (no popup)
   end
-  Note over U,IK: Closing the tab deletes the ghost key. Session ends; next visit needs another enable.
+  Note over U,IK: Closing the tab deletes the ghost key. Session ends and next visit needs another enable.
 ```
 
 ## What's intentionally NOT shipped (honest scope)
