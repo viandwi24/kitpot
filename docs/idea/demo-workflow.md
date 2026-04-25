@@ -1,6 +1,10 @@
 # Kitpot Demo — Recording & Editing Workflow
 
 > Companion document untuk [`demo-script.md`](./demo-script.md). Naskahnya sudah final di sana — file ini menjelaskan **urutan kerja**: generate VO → rekam visual → assemble di CapCut → ship.
+>
+> Naskah disesuaikan dengan **`README.md`** + **`README_DORAHACKS.md`** terbaru (chain `kitpot-2`, 102 tests, gamification eksplisit, "this is not gambling", pull-claim + keeper safety net).
+>
+> **Target durasi: 2:55 (hard ceiling 3:00).**
 
 ---
 
@@ -8,13 +12,13 @@
 
 ```
 1. Generate ElevenLabs VO dulu (per-scene MP3, 9 file)
-2. Putar VO via speaker / earbuds sambil screen-record   ← ini trik paling penting
+2. Putar VO via speaker / earbuds sambil screen-record   ← trik paling penting
 3. Drop VO + footage ke CapCut, sudah ~aligned otomatis
 4. Add music, captions, text overlay, color grade
 5. Export 1080p MP4 → upload YouTube unlisted → submit
 ```
 
-Total waktu real: 1 hari kerja kalau script & flow sudah final. Kalau revisi narasi ada banyak, 2 hari.
+Total waktu real: **1 hari kerja** kalau script & flow sudah final. Buffer 1 hari untuk revisi.
 
 ---
 
@@ -25,10 +29,9 @@ Total waktu real: 1 hari kerja kalau script & flow sudah final. Kalau revisi nar
 | **Voiceover final** | **English (US)** via ElevenLabs | Judge INITIATE = panel internasional. English adalah default submission DoraHacks. |
 | **Captions on-screen** | **English** (burn-in) | Banyak judge nonton **mute** saat scrolling submission — captions wajib. |
 | **Text overlay** (judul scene, label) | **English** | Konsisten dengan VO. |
-| **Suara saat rekam screen** | **NONE / silent** | Jangan rekam suaramu — sulit di-sync dengan VO ElevenLabs nanti. Recorder cukup capture system audio (chime tx, dll) atau bahkan mute total. |
-| **Kalau kepingin ada referensi tempo saat rekam** | **Putar VO ElevenLabs lewat speaker/earbuds** | VO masuk ke microphone secara halus — tidak masalah, akan ditimpa track terpisah di CapCut. Lebih sering dipakai di pacing reference. |
+| **Suara saat rekam screen** | **NONE / silent** | Jangan rekam suaramu sendiri. |
 
-**Tidak direkomendasikan**: rekam pakai bahasamu sendiri (Indonesia atau English) lalu swap dengan ElevenLabs. Mouth-position di tangan tidak masalah karena kita tidak tampilkan wajah, tapi *tempo gerakan kursor* dipengaruhi tempo bicara — kalau swap audio, gerakan jadi terlalu cepat atau terlalu lambat.
+**Tidak direkomendasikan**: rekam pakai bahasamu sendiri lalu swap ke ElevenLabs. Tempo gerakan kursor dipengaruhi tempo bicara — kalau swap audio, gerakan jadi tidak sync.
 
 ---
 
@@ -38,15 +41,14 @@ Kebanyakan orang rekam dulu, baru bikin VO. Itu salah untuk demo screencast kare
 
 1. Durasi VO **fixed** (TTS tidak bisa diregang panjang). Durasi visual **fleksibel** (clip bisa di-speedup, pause, dll).
 2. Tx confirmation di blockchain timing-nya **non-deterministic** — kalau visual direkam dulu, kamu akan struggle pas-paskan VO ke action yang sudah selesai.
-3. Trick yang sukses: **putar VO via speaker** sambil rekam → kursormu otomatis ikut tempo VO. Hasilnya hampir 1:1 sync di timeline CapCut, tinggal nudge ±200ms.
+3. **Trick**: putar VO via speaker sambil rekam → kursormu otomatis ikut tempo VO. Hasilnya hampir 1:1 sync di CapCut, tinggal nudge ±200ms.
 
-Urutannya jadi:
 ```
 [1] ElevenLabs VO (per scene, MP3)
        ↓
 [2] Putar VO Scene N via speaker → rekam aksi Scene N
        ↓
-[3] CapCut: VO + screen recording masuk timeline, sudah aligned
+[3] CapCut: VO + screen recording ke timeline
        ↓
 [4] Tambah text, music, transition, color
        ↓
@@ -59,38 +61,34 @@ Urutannya jadi:
 
 ### Voice pick
 
-Test 2 voice ini, pilih yang paling cocok dengan rasa Kitpot (calm, trustworthy):
-
 | Voice | Sifat | Cocok untuk |
 |---|---|---|
-| **Brian** (Pre-made library) | Deep, calm, US narrator-grade | **Default rekomendasi** — fits Kitpot's calm tone |
-| **Charlotte** (Pre-made library) | Soft, UK English female | Alternatif kalau Brian terdengar terlalu "Wall Street" |
+| **Brian** (Pre-made) | Deep, calm, US narrator-grade | **Default rekomendasi** — fits Kitpot's calm tone |
+| **Charlotte** (Pre-made) | Soft, UK English female | Alternatif kalau Brian terdengar terlalu "Wall Street" |
 
-> Hindari voice "Adam" / "Antoni" untuk demo ini — mereka cenderung sales-y. Hindari juga voice multilingual auto-detect, gunakan **English (US)** explicit.
+> Hindari "Adam" / "Antoni" — sales-y. Pakai **English (US)** explicit, jangan multilingual auto-detect.
 
 ### Setting per scene
 
-Pakai **Eleven Multilingual v2** atau **Eleven Turbo v2** (Turbo lebih murah, kualitas mirip untuk narator). Setting di bawah konsisten kecuali yang ditandai:
+Pakai **Eleven Multilingual v2** atau **Eleven Turbo v2**. Setting konsisten kecuali yang ditandai:
 
 ```
-Stability:           55-65   (default 60; turunkan ke 50 untuk emotional, naikkan ke 70 untuk factual)
+Stability:           55-70   (lihat tabel)
 Similarity boost:    75
-Style exaggeration:  10-25   (lihat per-scene di bawah)
+Style exaggeration:  0-30    (lihat tabel)
 Speaker boost:       ON
 ```
 
-Per-scene tuning:
-
 | Scene | Mood | Stability | Style exag |
 |---|---|---|---|
-| 1 — Hook | Dramatic, slower | **50** | **30** |
+| 1 — Hook | Dramatic, dengan pause | **50** | **30** |
 | 2 — Problem | Empathetic | 55 | 20 |
-| 3 — Solution | Confident | 60 | 15 |
-| 4 — Native features | Factual, crisp | 65 | 5 |
-| 5 — Demo: Create | Instructional | 65 | 5 |
-| 6 — Demo: Auto-sign | Building anticipation | 60 | 15 |
-| 7 — Demo: Claim | Resolved, satisfied | 60 | 15 |
-| 8 — Tech | Factual, neutral | **70** | 0 |
+| 3 — Solution | Confident, declarative | 60 | 15 |
+| 4 — Native | Factual, crisp | 65 | 5 |
+| 5 — Demo Create | Instructional | 65 | 5 |
+| 6 — Demo Sign | Building anticipation | 60 | 15 |
+| 7 — Demo Claim | Resolved, satisfied | 60 | 15 |
+| 8 — Gamification | Enthusiastic-light | 60 | 15 |
 | 9 — Closing | Warm, slower | 55 | 25 |
 
 ### Workflow generate
@@ -99,62 +97,64 @@ Per-scene tuning:
 2. Pilih voice (Brian)
 3. Per scene:
    - Set stability + style exaggeration sesuai tabel
-   - Paste teks **persis** dari `demo-script.md` Scene N (bagian *Narration (ElevenLabs)*)
+   - Paste teks **persis** dari "Per-scene prompts" di bawah (sudah pre-format angka jadi kata)
    - Generate
-   - Dengar — kalau ada pronunciation aneh (biasanya angka: *"three hundred million"*, *"sixty-second cycle"*) — re-roll 1–2 kali
-   - Download MP3, simpan dengan nama `scene-01-hook.mp3`, `scene-02-problem.mp3`, dst.
-4. Total cost estimate: ~9 scenes × ~2k characters total ≈ 18k characters → ~$5 di paid tier, atau muat di free tier kalau quota masih cukup.
+   - Re-roll 1–2 kali kalau pronunciation aneh (biasanya angka & istilah teknis)
+   - Download MP3, simpan: `scene-01-hook.mp3`, `scene-02-problem.mp3`, dst.
+4. Total estimate: ~9 scenes × ~2k chars total ≈ 2.5k chars → muat di free tier kalau quota cukup, atau ~$3 di paid.
 
-> **Tip pronunciation**: tulis angka panjang sebagai kata. *"300 million"* lebih sering keliru dibaca dari *"three hundred million"*. Spell `kitpot-2` sebagai `kitpot-two`. Spell `.init` sebagai `dot init`. Saya sudah pre-format begini di `demo-script.md`.
+> **Pronunciation tips**: tulis angka panjang sebagai kata. Spell `kitpot-2` sebagai `kitpot two`. Spell `.init` sebagai `dot init`. Spell `99%` sebagai `ninety-nine percent`. Sudah pre-format begini di prompt di bawah.
 
 ### Per-scene prompts siap-paste
 
-> Copy persis ini ke ElevenLabs (sudah dengan kata-bukan-angka). Format angka diubah supaya TTS membacanya alami.
+> Copy persis ini ke ElevenLabs. Word count + estimasi durasi sudah dihitung di 140 wpm. Total: **351 kata · ~2:30 raw VO** (sisa ~25 detik untuk pauses & transitions = 2:55 final).
 
-#### Scene 1 — Hook
+#### Scene 1 — Hook (17 kata · ~12s dengan dramatic pause)
 ```
-Three hundred million people on this planet save money the same way. Every month, they pool cash into one pot, and one person takes their turn to keep it. It's been working for five hundred years. There's just one bug. Someone has to hold the money.
-```
-
-#### Scene 2 — Problem
-```
-Today, every rotating savings circle still runs on a WhatsApp group, a spreadsheet, and one trusted person. That person can disappear. They can miscount. They can play favorites. The whole structure rests on social trust — and social trust does not scale past your closest friends.
+Three hundred million people. Five hundred years. One ritual. With one bug. Someone has to hold the money.
 ```
 
-#### Scene 3 — Solution
+#### Scene 2 — Problem (26 kata · ~13s)
 ```
-Kitpot is the same savings circle — but the treasurer is a smart contract. Members deposit each cycle. The contract holds the pot. The contract picks the recipient. The contract slashes anyone who pays late. There is nothing to trust except the code, and the code is open.
-```
-
-#### Scene 4 — Native features
-```
-Kitpot uses three things you can only do on Initia. Auto-signing turns one approval into a whole session of silent transactions. Initia's dot init username registry lets you invite members by name, not by hex address. And the Interwoven Bridge connects assets from the Initia hub directly into our own rollup, kitpot two. None of these exist as a native primitive on any other chain.
+Today, every rotating savings circle still runs on a WhatsApp group, a spreadsheet, and one trusted person. That person can disappear. Trust does not scale.
 ```
 
-#### Scene 5 — Demo: Create
+#### Scene 3 — Solution (36 kata · ~15s)
 ```
-We log in with Google — no seed phrase, no extension. The auto-faucet drops some test tokens. Then we create a circle. Three members, one hundred USDC each cycle, and for this demo we use a sixty-second cycle so you can watch a full month finish in a minute. Every parameter — penalty, grace period, member count — is configured at creation time and locked in the contract.
-```
-
-#### Scene 6 — Demo: Join + Auto-sign
-```
-Other members open the share link. Each one joins by depositing collateral — that's the safety net the contract uses to enforce on-time payments later. When the third seat is filled, the circle goes Active. Now the magic — every member enables auto-sign. One popup. One signature. From this point on, every deposit, every claim, every interaction this session signs silently. No more wallet popups.
+Kitpot replaces the treasurer with a smart contract. Members deposit. The contract holds the pot, picks the recipient, slashes late payers. Everyone receives the pot exactly once. No lottery. No gambling. Just the ritual, made atomic.
 ```
 
-#### Scene 7 — Demo: Deposit + Claim
+#### Scene 4 — Native (38 kata · ~15s)
 ```
-Each member deposits. Notice the absence of popups — auto-sign is doing its job. The pot fills to three hundred USDC. The cycle window elapses. The recipient calls claim, and the contract atomically transfers the pot, slashes anyone who didn't pay, and advances to the next cycle. The recipient's reputation goes up. They earn an on-chain badge. None of this required a treasurer.
-```
-
-#### Scene 8 — Tech
-```
-Under the hood: five contracts, one hundred and two tests passing, deployed on our own Initia EVM rollup. Auto-signing is wired through Cosmos authz and feegrant. The protocol is multi-token — any ERC twenty can be a circle. And there's a permissionless keeper: if the recipient ever goes dormant, anyone can unstick the circle, the pot still goes to the right person, and the keeper earns a small fee for the work.
+Three Initia-native primitives make this real. Auto-sign — approve once, every cycle signs silently. Dot init usernames — invite by name, not hex. And the Interwoven Bridge — assets flow into our own rollup. None of these exist natively anywhere else.
 ```
 
-#### Scene 9 — Closing
+#### Scene 5 — Demo: Create (46 kata · ~21s)
 ```
-Three hundred million people. Five hundred years. One ritual. Now it runs on Initia, with the treasurer replaced by code. Try it at kitpot dot vercel dot app. Thank you.
+We log in with Google — no seed phrase. The auto-faucet drops test tokens. We create a circle: three members, one hundred USDC each cycle, sixty seconds for demo. Every rule — penalty, grace period, member count — locked in the contract at creation.
 ```
+
+#### Scene 6 — Demo: Auto-sign (41 kata · ~19s)
+```
+Members open the share link, deposit collateral, and join. The third seat fills. The circle goes Active. Now the magic — each member enables auto-sign. One popup. One signature. From here, every deposit signs silently. No more wallet popups.
+```
+
+#### Scene 7 — Demo: Claim + Keeper (67 kata · ~30s)
+```
+Each member deposits — silent, no popup. The pot fills to three hundred USDC. The cycle window elapses. The recipient claims. The contract atomically slashes non-payers, transfers ninety-nine percent of the pot, and advances. And there's a safety net — if the recipient goes dormant, anyone can substitute-claim after seven days. The pot still goes to the right wallet, the keeper earns a small fee.
+```
+
+#### Scene 8 — Gamification (44 kata · ~20s)
+```
+Every cycle builds on-chain reputation. Twelve soulbound badges. Five trust tiers — Bronze through Diamond. An XP system entirely authored by the contract. No backend hands out reputation. If you completed a perfect circle, the contract minted you the badge atomically.
+```
+
+#### Scene 9 — Closing (36 kata · ~16s)
+```
+Three hundred million people. Five hundred years. One ritual. Now it runs on Initia — with the treasurer replaced by code. The first on-chain savings circle on Initia. Try it at kitpot dot vercel dot app.
+```
+
+> **Verifikasi durasi**: dengarkan total VO di ElevenLabs preview, jumlahkan. Kalau total raw > 2:35, perlu re-roll Scene 7 (paling panjang) dengan stability lebih tinggi (cenderung baca lebih cepat). Target: **raw VO total 2:30 ± 5 detik**.
 
 ---
 
@@ -164,27 +164,25 @@ Three hundred million people. Five hundred years. One ritual. Now it runs on Ini
 
 | Tool | Pilihan | Catatan |
 |---|---|---|
-| Screen recorder | **CleanShot X** (paid, Mac) atau **OBS Studio** (free, semua OS) | Hindari Loom — kompresi terlalu agresif untuk submission |
+| Screen recorder | **CleanShot X** (Mac, paid) atau **OBS Studio** (free) | Hindari Loom — kompresi terlalu agresif |
 | Resolusi | **1920×1080** atau **2560×1440** | Jangan 4K, ukuran file kelewatan |
-| FPS | **60 fps** | Smooth scroll & cursor lebih enak ditonton |
-| Cursor highlight | CleanShot bawaan, atau **Mousecape** (Mac), atau OBS plugin | Highlight kuning/pink lembut, jangan giant |
-| Audio | **System audio only** (untuk chime tx) atau **mute** | Mute paling aman |
+| FPS | **60 fps** | Smooth scroll & cursor |
+| Cursor highlight | CleanShot bawaan / **Mousecape** (Mac) / OBS plugin | Highlight kuning/pink lembut, jangan giant |
+| Audio | **System audio only** (chime tx) atau **mute** | Mute paling aman |
 
 ### Browser prep
 
 ```
-[ ] Buka Chrome / Brave dengan profile baru (atau Incognito)
+[ ] Chrome / Brave dengan profile baru (atau Incognito)
 [ ] Set zoom 100%, font default
 [ ] Sembunyikan bookmark bar (Cmd+Shift+B)
 [ ] Tutup semua tab lain
-[ ] Disable extension yang bisa popup (Grammarly, password manager, dll)
-[ ] Toggle dark mode di OS (Mac: System Settings → Appearance → Dark)
-[ ] Test resolusi: zoom-out 90% bila tampilan Kitpot terlalu sempit di 1080p
+[ ] Disable extension yang bisa popup (Grammarly, password manager)
+[ ] Toggle dark mode di OS
+[ ] Test resolusi: zoom-out 90% bila Kitpot terlalu sempit di 1080p
 ```
 
 ### Wallet prep (3 wallet)
-
-Demo butuh 3 anggota. Cara paling rapi:
 
 ```
 Wallet A (creator)  →  Chrome profile "Demo A" + akun Google A
@@ -196,19 +194,23 @@ Setiap profile login Privy via Google → auto-faucet drop GAS + USDC + USDe. Pa
 
 ### Pre-flight test (WAJIB sebelum rekam final)
 
-Lakukan **dry-run penuh tanpa merekam** sekali untuk memastikan flow jalan:
+Lakukan **dry-run penuh tanpa merekam** sekali untuk verifikasi flow:
 
 ```
 [ ] Wallet A: Connect → faucet drop OK → Create Circle (60s cycle, 3 member, 100 USDC)
 [ ] Wallet B: Open share link → Join → collateral lock OK
 [ ] Wallet C: Open share link → Join → status circle flips Forming → Active
 [ ] Wallet B: Toggle Auto-sign → Privy popup → confirm → toggle nyala
-[ ] Wallet B: Deposit → SILENT (no popup) ← ini yang harus di-verify!
-[ ] Wait 60 detik → Wallet A claim → 297 USDC mendarat
-[ ] Reputation page Wallet A: tier progress visible, badge muncul
+[ ] Wallet B: Deposit → SILENT (no popup)  ← verify ini!
+[ ] Wallet C: Deposit → SILENT
+[ ] Wallet A: Deposit → SILENT
+[ ] Wait 60 detik → Wallet A claim → 297 USDC mendarat (300 − 1% fee)
+[ ] Reputation page Wallet A: tier progress visible, badge "First Pot" muncul
 ```
 
-Kalau salah satu step gagal — jangan rekam dulu. Lebih baik delay 1 jam fix bug daripada rekam ulang dari nol.
+Kalau salah satu step gagal — **jangan rekam dulu**. Lebih baik delay 1 jam fix bug daripada rekam ulang dari nol.
+
+> **Kalau auto-sign gagal sign silently**: itu biasanya karena GAS di L1 habis (authz grant butuh L1 signing). Top-up dari `faucet.testnet.initia.xyz` dulu, baru retry.
 
 ---
 
@@ -218,30 +220,36 @@ Kalau salah satu step gagal — jangan rekam dulu. Lebih baik delay 1 jam fix bu
 
 ```
 1. Buka folder MP3 ElevenLabs
-2. Putar `scene-01-hook.mp3` lewat speaker / earbuds
+2. Putar `scene-05-demo-create.mp3` lewat speaker / earbuds
 3. Mulai screen recorder (background)
-4. Lakukan aksi sesuai naskah Scene 1 (atau diam-diam tampilkan visual kalau Scene 1 = pure animation)
+4. Lakukan aksi sesuai naskah Scene 5 sambil ikuti tempo VO
 5. Stop recorder ketika VO selesai
-6. Save file: `recording-scene-01.mov` (atau MP4)
-7. Repeat untuk Scene 2, 3, dst
+6. Save file: `recording-scene-05.mov`
+7. Repeat untuk Scene 6 dan Scene 7
 ```
 
-Beberapa scene tidak butuh screen recording sama sekali (Scene 1 Hook, Scene 4 Native features, Scene 8 Tech, Scene 9 Closing) — ini akan di-handle dengan motion graphics / text animation di CapCut. Skip dan lanjut ke scene berikutnya.
-
 ### Yang butuh screen recording
+
+Hanya **3 scene** yang butuh actual screen recording. Sisanya motion graphics di CapCut.
 
 | Scene | Apa yang direkam | Wallet aktif |
 |---|---|---|
 | 5 — Create | Connect → Faucet drop → Create form → submit | A |
 | 6 — Join + Auto-sign | Wallet B & C join → Wallet B toggle auto-sign | B (focus) |
-| 7 — Deposit + Claim | Wallet B deposit silent → countdown → Wallet A claim → reputation page | B → A |
+| 7 — Deposit + Claim (sebagian) | Deposit silent × 3 → countdown → Wallet A claim → 297 USDC mendarat | B → A |
+
+> **Scene 7 keeper segment** (substituteClaim) **tidak perlu direkam** — ini ditampilkan sebagai motion graphics text overlay di CapCut. Demo realtime butuh tunggu 7 hari di kontrak — tidak feasible. Pakai diagram + text saja, jujur dan cukup.
+
+### Yang TIDAK perlu screen recording
+
+Scene 1, 2, 3, 4, 8, 9 — semuanya pure motion graphics di CapCut.
 
 ### Tips selama rekam
 
-- **Jangan kelewat cepat** — kursor yang lambat & deliberate lebih enak ditonton dari kursor yang panik. Lambatkan ke ~80% kecepatan natural.
+- **Jangan kelewat cepat** — kursor lambat & deliberate lebih enak ditonton.
 - **Hover sebentar** sebelum klik (0.5 detik) — viewer perlu *tahu* kamu mau klik apa.
-- **Zoom-in via OS** kalau detail penting (Mac: Ctrl + scroll). Atau biarkan zoom dilakukan di CapCut.
-- **Speed-up tx waiting** dilakukan di edit, bukan saat rekam. Saat rekam, biarkan loading natural — nanti di-cut/speedup.
+- **Zoom-in via OS** kalau detail penting (Mac: Ctrl + scroll). Atau zoom di CapCut.
+- **Speed-up tx waiting** dilakukan di edit, bukan saat rekam.
 - **Rekam ulang kalau salah klik** — lebih cepat ulang 1 take daripada masking di edit.
 
 ---
@@ -257,7 +265,7 @@ New project → 16:9 → 1080p → 30 fps (atau 60 fps kalau footage 60fps)
 ### Timeline organization (5 track)
 
 ```
-Track 5  ▌Text & titles (overlay teks Scene 1, 4, 8, 9)
+Track 5  ▌Text & titles (overlay teks Scene 1, 4, 8, 9 + scene labels)
 Track 4  ▌Captions / subtitle
 Track 3  ▌Music background
 Track 2  ▌Voiceover ElevenLabs (semua MP3 disusun urut)
@@ -266,75 +274,79 @@ Track 1  ▌Screen recording / motion graphics
 
 ### Step-by-step edit
 
-**1. Drop semua VO MP3 ke Track 2, urut Scene 1 → 9.** Geser supaya saling menyambung tanpa gap (atau beri jeda 200–300ms antar scene untuk breathing room).
+**1. Drop semua VO MP3 ke Track 2, urut Scene 1 → 9.** Geser supaya saling menyambung dengan **gap 200–300ms antar scene** untuk breathing room. **Verifikasi total durasi panel timeline = 2:55 ± 5s.** Kalau lebih dari 3:00, kompres gap atau re-roll scene yang paling panjang dengan stability +10.
 
-**2. Drop screen recording ke Track 1 sesuai scene yang membutuhkan.**
-
-   - Scene 5, 6, 7: footage screen recording masuk
-   - Scene 1, 2, 3, 4, 8, 9: tidak ada footage — pakai background gradient + text animation
+**2. Drop screen recording ke Track 1.** Hanya untuk Scene 5, 6, 7. Untuk scene lain, biarkan kosong dulu — nanti diisi motion graphics.
 
 **3. Speedup transaction wait clips.**
+   - Pilih clip → Speed → 2× atau 3× untuk loading spinner
+   - Untuk countdown 60-detik di Scene 7 — **speedup 8×** atau **jump-cut** dari "55s" → "5s" (lebih bersih)
 
-   - Pilih clip → Speed → 2x atau 3x untuk bagian loading spinner
-   - Untuk countdown 60-detik di Scene 7 — speedup ke 8x atau cut ke jump (timestamp visible "55s" → "5s")
+**4. Add cursor highlight** kalau belum ada di rekaman.
+   - CapCut Effects → search "spotlight" / "circle highlight"
+   - Atau pre-record dengan CleanShot yang cursor highlight bawaan
 
-**4. Add cursor highlight** kalau belum ada di rekaman:
-
-   - CapCut Effects → search "spotlight" atau "circle highlight"
-   - Track cursor manual (CapCut tidak auto-track cursor; kalau perlu auto, gunakan Descript atau ScreenStudio sebagai pre-processor)
-   - Alternatif: pre-record dengan CleanShot yang cursor highlight bawaan, lebih simpel.
-
-**5. Add text overlay (Track 5).**
-
-   - Untuk scene tanpa footage: text adalah focal point. Pakai font **Inter** atau **Geist** Bold.
+**5. Add text overlay (Track 5) — terutama scene non-recording.**
+   - Font: **Inter** atau **Geist** Bold
    - Animation: **Fade In** masuk, **Fade Out** keluar. Hindari "typewriter" / "bounce" — terlalu hyper.
-   - Posisi: center untuk title cards, lower-third untuk caption-style.
-   - Stagger muncul (timing 0.5–1 detik antar baris) untuk text bertingkat di Hook.
+   - Posisi: center untuk title cards, lower-third untuk caption-style
+   - Stagger muncul (timing 0.5–1 detik antar baris) untuk text bertingkat di Hook
 
 **6. Generate captions otomatis (Track 4).**
-
-   - CapCut bawaan: **Text → Auto Captions → English**. Akurasi >95% untuk ElevenLabs voice.
-   - Edit manual untuk angka & istilah teknis (`USDC`, `kitpot-2`, `.init`).
-   - Style: white text + black drop shadow, posisi bottom 15%, font medium.
+   - CapCut bawaan: **Text → Auto Captions → English**. Akurasi >95% untuk ElevenLabs.
+   - Edit manual untuk angka & istilah teknis: `USDC`, `kitpot-2`, `.init`, `99%`
+   - Style: white text + black drop shadow, posisi bottom 15%, font medium
 
 **7. Music background (Track 3).**
-
-   - Sumber royalty-free yang aman:
-     - YouTube Audio Library (filter: ambient / cinematic / inspirational)
-     - Epidemic Sound (paid tapi paling aman dari claim)
-     - Lo-fi creator dengan license commercial-OK (cek deskripsi mereka)
-   - Volume: turunkan ke **−18 dB sampai −22 dB** (jauh di bawah VO yang 0 dB)
-   - **Sidechain ducking**: di CapCut, pakai **Audio → Effects → Voice Enhance** di VO + **Volume keyframe** di music untuk drop -3 dB saat VO bicara
-   - Fade in di awal (1 detik), fade out di akhir (2 detik)
+   - Sumber royalty-free: **YouTube Audio Library** (cari ambient / cinematic / inspirational), **Epidemic Sound** (paid, paling aman)
+   - Volume: turunkan ke **−18 dB sampai −22 dB**
+   - **Sidechain ducking**: drop −3 dB saat VO bicara
+   - Fade in 1 detik di awal, fade out 2 detik di akhir
 
 **8. Color grade.**
-
-   - Demo Kitpot sudah dark mode → tidak banyak perlu di-grade
-   - Apply **LUT preset → "Cinematic" / "Clean Tech"** kalau available
+   - Kitpot sudah dark mode → tidak banyak perlu di-grade
    - Slight contrast +5, saturation +5
    - Hindari over-saturate atau filter berlebihan
 
 **9. Add transitions antar scene.**
-
-   - **Fade to black** (0.3 detik) antar scene besar (Scene 1→2, 4→5, 7→8, 8→9)
+   - **Fade to black** (0.3 detik) antar scene besar (1→2, 4→5, 7→8, 8→9)
    - **Smooth cut** (no transition) antar sub-scene di dalam demo (5→6→7)
-   - Hindari wipe, zoom-burst, glitch.
+   - Hindari wipe, zoom-burst, glitch
 
 **10. Add intro & outro buffer.**
-
-   - 0.5 detik black di awal (sebelum Scene 1) — menghindari abrupt start
+   - 0.5 detik black di awal (sebelum Scene 1)
    - 1 detik black di akhir (setelah Scene 9 fade out)
+
+### Special — Scene 8 motion graphics (gamification)
+
+Karena Scene 8 dihandle sebagai motion graphics (no recording), siapkan asset di CapCut:
+
+```
+Asset 1 — Tier ladder (animasi 5 step):
+   Unranked → Bronze → Silver → Gold → Diamond
+   Setiap step muncul sequential, 0.5 detik per step
+   Highlight Diamond di akhir (glow effect)
+
+Asset 2 — Badge gallery (12 soulbound badges):
+   Mock 12 ikon SVG sederhana (gold star / streak flame / circle / dll)
+   Susun grid 4×3, fade-in semua bersamaan
+   Atau scroll horizontal pelan kalau muat di frame
+
+Asset 3 — XP table (text-only):
+   Join +20  ·  On-time +10  ·  Pot +100  ·  Perfect Circle +200
+   Tampilkan sebagai 4 chip horizontal
+```
+
+> Kalau punya akses ke kontrak `KitpotAchievements.sol`, screenshot 3-4 SVG asli dari `tokenURI()` untuk authenticity. Itu **on-chain SVG** yang menjadi value-prop teknis Scene 8.
 
 ### Audio mix akhir
 
 ```
 Voiceover (Track 2):  0 dB peak, normalize to -3 dB
 Music (Track 3):     -18 dB ambient, ducks to -21 dB during VO
-Sound effects:       -10 dB (cycle elapse chime, USDC landing chime)
+Sound effects:       -10 dB (cycle elapse chime, USDC landing chime di Scene 7)
 Captions:            no audio
 ```
-
-Pakai meter VU di CapCut untuk verify, atau export ke headphone untuk listening test.
 
 ### Export settings
 
@@ -342,7 +354,7 @@ Pakai meter VU di CapCut untuk verify, atau export ke headphone untuk listening 
 Resolution:  1920 × 1080
 Frame rate:  matches source (30 atau 60)
 Encoder:     H.264
-Bitrate:     8–12 Mbps (recommended) atau Higher Quality preset
+Bitrate:     8–12 Mbps (recommended)
 Audio:       AAC, 192 kbps, stereo, 48 kHz
 Format:      MP4
 Filename:    kitpot-demo-v1.mp4
@@ -355,26 +367,29 @@ Filename:    kitpot-demo-v1.mp4
 ### Pre-publish checklist
 
 ```
-[ ] Total durasi 2:30 – 3:00 ✅
+[ ] Total durasi 2:50 – 3:00 ✅ (DoraHacks recommends ≤3 min)
 [ ] Hook 5 detik pertama menarik (test: tunjukkan ke teman, tanya "lanjut nonton?")
 [ ] Captions burned-in & cocok dengan VO (zero typo)
 [ ] Music tidak mengalahkan VO (test di earphone & speaker)
 [ ] Tidak ada notification numpang nongol
-[ ] Wallet address / private key tidak terbaca di mana pun
-[ ] Logo Kitpot & link kitpot.vercel.app jelas terbaca di Closing
-[ ] Tidak ada watermark CapCut bawaan (kalau pakai free version, upgrade ke pro untuk export tanpa watermark — atau pakai DaVinci Resolve free)
+[ ] Wallet address / private key tidak terbaca
+[ ] Logo Kitpot & kitpot.vercel.app jelas terbaca di Closing
+[ ] Tidak ada watermark CapCut bawaan (upgrade Pro atau pakai DaVinci Resolve free)
+[ ] Chain ID disebut "kitpot-2" — bukan "kitpot-1" (cross-check semua text overlay)
+[ ] Test count "102 tests" konsisten dengan README — bukan "30" dari doc lama
+[ ] Klaim "first on-chain ROSCA on Initia" cocok dengan competitive landscape README
 ```
 
 ### Upload
 
 ```
 1. YouTube → Upload video → Visibility: Unlisted
-   ├─ Title: "Kitpot — INITIATE Demo"
-   ├─ Description: copy ringkasan dari README.md (3–5 baris)
-   ├─ Tags: kitpot, initia, hackathon, defi, rosca, savings
+   ├─ Title: "Kitpot — INITIATE Demo (Trustless Savings Circles on Initia)"
+   ├─ Description: copy ringkasan Overview dari README_DORAHACKS.md
+   ├─ Tags: kitpot, initia, hackathon, rosca, arisan, savings, defi
    └─ Thumbnail: screenshot Scene 9 closing (logo + tagline)
 
-2. Loom backup (optional) — upload sebagai cadangan kalau YouTube takedown
+2. Loom backup (optional) — upload sebagai cadangan
 
 3. Update .initia/submission.json:
    "demo_video_url": "https://youtu.be/<id>"
@@ -382,24 +397,30 @@ Filename:    kitpot-demo-v1.mp4
 4. Update README.md baris "Demo video":
    | **Demo video** | <https://youtu.be/<id>> |
 
-5. Commit + push.
+5. Update README_DORAHACKS.md baris "Demo video":
+   | Demo video | <https://youtu.be/<id>> |
+
+6. Commit + push.
 ```
 
 ---
 
-## Common pitfalls (sudah kena di submission lain)
+## Common pitfalls
 
 | Pitfall | Cara hindari |
 |---|---|
-| **Audio clipping** (VO terdengar pecah) | Normalize VO ke −3 dB peak, jangan biarkan 0 dB merah |
+| **Total durasi > 3:00** | Hard ceiling DoraHacks. Kalau lewat 3:00 — potong Scene 8 dulu (paling fleksibel), lalu Scene 4. |
+| **Audio clipping** (VO pecah) | Normalize VO ke −3 dB peak |
 | **Captions delay** dari VO | Auto-caption CapCut kadang offset 200–500ms — manual nudge per segment |
-| **Tx loading spinner terlalu lama** | Speedup 4× atau jump-cut, jangan biarkan viewer melongo |
-| **URL bar terbaca sensitif** (preview di share link) | Crop top 60px, atau hide URL bar via fullscreen browser |
-| **Wallet address terlihat di header** | Crop atau blur — minimal blur partial address |
+| **Tx loading spinner terlalu lama** | Speedup 4× atau jump-cut |
+| **URL bar terbaca sensitif** | Crop top 60px, atau hide URL bar via fullscreen browser |
+| **Wallet address terlihat di header** | Crop atau blur partial address |
 | **Music copyright claim di YouTube** | Pakai music dari YouTube Audio Library (auto-clear) |
-| **Resolusi salah** (4:5 atau 9:16 portrait) | Lock aspect ratio 16:9 di CapCut sejak awal |
-| **Logo overlay menutup UI penting** | Pojok kanan bawah, opacity 50% kalau perlu |
-| **Hook kelewat lambat** (3 detik baru ada teks) | Frame pertama harus sudah ada movement — text fade-in dari frame 1 |
+| **Resolusi salah** (4:5 atau 9:16 portrait) | Lock 16:9 di CapCut sejak awal |
+| **Hook kelewat lambat** (3 detik baru ada teks) | Frame pertama harus sudah ada movement |
+| **Klaim auto-sign over-promised** | Jangan bilang "auto-pay while you sleep" — auto-sign session-based, kalau tab ditutup session selesai. README explicit tentang ini. |
+| **Klaim bridge over-promised** | Jangan bilang "bridge sudah carry asset". Modal opens, tapi `kitpot-2` belum di registry resmi. |
+| **Pakai chain ID lama** | Cross-check semua text overlay: **kitpot-2**, bukan kitpot-1. |
 
 ---
 
@@ -411,6 +432,7 @@ Filename:    kitpot-demo-v1.mp4
 | Pre-flight test (3 wallet, dry-run) | 1 jam |
 | Screen recording (3 scene utama) | 1–2 jam (termasuk re-take) |
 | CapCut assembly (timeline, sync, text) | 2–3 jam |
+| Motion graphics Scene 8 (gamification) | 30–45 menit |
 | Color grade + music + captions | 1 jam |
 | QA + revisi + export | 1 jam |
 | Upload + submission update | 30 menit |
@@ -429,6 +451,7 @@ Realistic: kalau mulai pagi, video bisa upload sore yang sama. Buffer 1 hari unt
 | Pacing terlalu cepat di Scene X | Murah — speed adjustment di clip itu saja |
 | Voice ElevenLabs salah pronunciation | Sedang — re-generate scene MP3, replace di Track 2 |
 | Naskah salah / mau ganti angle | Mahal — re-generate seluruh VO + re-time |
-| Demo flow berubah (UI Kitpot di-update) | Sangat mahal — re-record screen + re-time |
+| Demo flow berubah (UI Kitpot di-update) | **Sangat mahal** — re-record screen + re-time |
+| Kontrak redeploy (chain ID berubah) | **Sangat mahal** — semua text overlay perlu cek ulang, re-record kalau address ditampilkan |
 
-Karena re-record paling mahal, **lock UI Kitpot** sebelum mulai rekam. Jangan deploy contract baru atau mengubah halaman dashboard sampai video selesai upload.
+Karena re-record paling mahal, **lock UI Kitpot dan kontrak deploy** sebelum mulai rekam. Jangan deploy contract baru atau mengubah halaman dashboard sampai video selesai upload.
