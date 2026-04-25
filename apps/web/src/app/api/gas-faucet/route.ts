@@ -1,36 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MnemonicKey, Wallet, MsgSend, RESTClient, Fee, Coins, AccAddress } from "@initia/initia.js";
+import { createWalletClient, http, encodeFunctionData, type Account } from "viem";
+import { mnemonicToAccount } from "viem/accounts";
 
 /**
- * Gas Faucet — native Initia Cosmos x/bank MsgSend.
+ * Gas Faucet — native Initia Cosmos x/bank MsgSend + EVM stablecoin mints.
  *
- * ROOT CAUSE of earlier version:
- *   The previous implementation used viem EVM transfer (`sendTransaction`).
- *   On MiniEVM, EVM value transfers update the EVM ledger but do NOT register
- *   a Cosmos x/auth account entry for the receiver. InterwovenKit queries
- *   `/cosmos/auth/v1beta1/account_info/{addr}` before any tx, and without an
- *   auth account entry the query returns 404 → user can never transact.
- *
- * PROPER FIX:
- *   Use @initia/initia.js (official Initia SDK, same lib InterwovenKit uses
- *   under the hood) to build a native Cosmos x/bank MsgSend tx. This creates
- *   the receiver's auth account AND credits their balance in one shot.
- *
- * Plan 18 §0 compliance: native stack, no hallucination.
- * Plan 19 §4 Bucket C: unchanged intent (bootstrap gas problem), improved impl.
+ * After GAS drip succeeds, mints 5,000 USDC + 5,000 USDe to the receiver
+ * so they can immediately create/join circles without visiting the faucet page.
  */
 
 const REST_URL = process.env.NEXT_PUBLIC_KITPOT_COSMOS_REST ?? "https://kitpot-rest.viandwi24.com";
 const CHAIN_ID = process.env.NEXT_PUBLIC_KITPOT_COSMOS_CHAIN_ID ?? "kitpot-2";
 const NATIVE_SYMBOL = process.env.NEXT_PUBLIC_KITPOT_NATIVE_SYMBOL ?? "GAS";
+const JSON_RPC_URL = process.env.NEXT_PUBLIC_KITPOT_JSON_RPC ?? "https://kitpot-rpc.viandwi24.com";
+const EVM_CHAIN_ID = Number(process.env.NEXT_PUBLIC_KITPOT_EVM_CHAIN_ID ?? "64146729809684");
 
-// Operator has ~1T raw GAS from genesis. Drip 100,000,000 raw units per claim.
-// With that, operator can fund ~10,000 users before refill. Gas price = 0 so
-// receiver can transact immediately after registration.
+const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "0x") as `0x${string}`;
+const USDE_ADDRESS = (process.env.NEXT_PUBLIC_USDE_ADDRESS ?? "0x") as `0x${string}`;
+
+// 5,000 tokens with 6 decimals = 5_000_000_000
+const MINT_AMOUNT = 5_000_000_000n;
+
 const DRIP_AMOUNT_RAW = "100000000";
 const COOLDOWN_MS = 60 * 60 * 1000;
 
 const claims = new Map<string, number>();
+
+// Minimal mint ABI
+const MINT_ABI = [
+  {
+    type: "function" as const,
+    name: "mint" as const,
+    inputs: [
+      { name: "to", type: "address" as const },
+      { name: "amount", type: "uint256" as const },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable" as const,
+  },
+] as const;
+
+// Cache the viem wallet client at module scope
+let cachedViemClient: ReturnType<typeof createWalletClient> | null = null;
+let cachedViemAccount: Account | null = null;
+
+const KITPOT_CHAIN = {
+  id: EVM_CHAIN_ID,
+  name: "Kitpot Testnet",
+  nativeCurrency: { name: "GAS", symbol: "GAS", decimals: 18 },
+  rpcUrls: { default: { http: [JSON_RPC_URL] } },
+} as const;
+
+function getViemClient(mnemonic: string) {
+  if (cachedViemClient && cachedViemAccount) {
+    return { client: cachedViemClient, account: cachedViemAccount };
+  }
+  const account = mnemonicToAccount(mnemonic, { path: "m/44'/60'/0'/0/0" });
+  const client = createWalletClient({
+    account,
+    chain: KITPOT_CHAIN,
+    transport: http(JSON_RPC_URL),
+  });
+  cachedViemClient = client;
+  cachedViemAccount = account;
+  return { client, account };
+}
 
 function hexToBech32(hex: string): string | null {
   try {
@@ -39,6 +74,39 @@ function hexToBech32(hex: string): string | null {
     return AccAddress.fromHex(clean);
   } catch {
     return null;
+  }
+}
+
+function bech32ToHex(bech32: string): `0x${string}` | null {
+  try {
+    const hex = AccAddress.toHex(bech32);
+    return `0x${hex}` as `0x${string}`;
+  } catch {
+    return null;
+  }
+}
+
+async function mintToken(
+  client: ReturnType<typeof createWalletClient>,
+  account: Account,
+  tokenAddress: `0x${string}`,
+  receiverHex: `0x${string}`,
+): Promise<{ tx: string; amount: string } | { error: string }> {
+  try {
+    if (tokenAddress === "0x") return { error: "token address not configured" };
+    const hash = await client.writeContract({
+      address: tokenAddress,
+      abi: MINT_ABI,
+      functionName: "mint",
+      args: [receiverHex, MINT_AMOUNT],
+      chain: KITPOT_CHAIN,
+      account,
+    });
+    return { tx: hash, amount: MINT_AMOUNT.toString() };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[gas-faucet] mint failed for ${tokenAddress}:`, message);
+    return { error: message.slice(0, 200) };
   }
 }
 
@@ -97,12 +165,28 @@ export async function POST(req: NextRequest) {
 
     claims.set(cooldownKey, Date.now());
 
+    // Mint stablecoins (best-effort, never blocks GAS drip response)
+    const receiverHex = inputAddr.startsWith("0x")
+      ? (inputAddr as `0x${string}`)
+      : bech32ToHex(receiverBech32);
+
+    let stablecoinMints: Record<string, { tx: string; amount: string } | { error: string }> = {};
+    if (receiverHex) {
+      const { client, account } = getViemClient(mnemonic);
+      const [usdcResult, usdeResult] = await Promise.all([
+        mintToken(client, account, USDC_ADDRESS, receiverHex),
+        mintToken(client, account, USDE_ADDRESS, receiverHex),
+      ]);
+      stablecoinMints = { usdc: usdcResult, usde: usdeResult };
+    }
+
     return NextResponse.json({
       hash: result.txhash,
       sender: senderBech32,
       receiver: receiverBech32,
       amount: DRIP_AMOUNT_RAW,
       denom: NATIVE_SYMBOL,
+      stablecoinMints,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -53,3 +53,33 @@ export function useAchievementTokenIds(address: `0x${string}` | undefined) {
     query: { enabled: !!address },
   });
 }
+
+interface TokenMetadata {
+  name: string;
+  description: string;
+  image: string;
+  attributes: Array<{ trait_type: string; value: string }>;
+}
+
+/** Fetch and decode the on-chain tokenURI (base64 JSON with embedded SVG). */
+export function useTokenSvg(tokenId: bigint | undefined) {
+  const { data: uri } = useReadContract({
+    address: CONTRACTS.achievements,
+    abi: ACHIEVEMENTS_ABI,
+    functionName: "tokenURI",
+    args: tokenId !== undefined ? [tokenId] : undefined,
+    query: { enabled: tokenId !== undefined },
+  });
+
+  if (!uri || typeof uri !== "string") return null;
+
+  try {
+    // Format: data:application/json;base64,<...>
+    const prefix = "data:application/json;base64,";
+    if (!uri.startsWith(prefix)) return null;
+    const json = atob(uri.slice(prefix.length));
+    return JSON.parse(json) as TokenMetadata;
+  } catch {
+    return null;
+  }
+}

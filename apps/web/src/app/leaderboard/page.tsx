@@ -7,12 +7,57 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TierBadge } from "@/components/reputation/tier-badge";
-import { InitUsername } from "@/components/username/init-username";
 import { REPUTATION_ABI } from "@/lib/abi/KitpotReputation";
 import { KITPOT_ABI } from "@/lib/abi/KitpotCircle";
 import { CONTRACTS } from "@/lib/contracts";
 import { truncateAddress } from "@/lib/utils";
+import { useUsernameQuery } from "@initia/interwovenkit-react";
 import Link from "next/link";
+
+/** Per-row component that resolves .init username and conditionally shows truncated address. */
+function LeaderboardRow({
+  entry,
+  rank,
+  tab,
+}: {
+  entry: { address: `0x${string}`; xp: number; circles: number; streak: number; tier: number };
+  rank: number;
+  tab: "xp" | "circles" | "streak";
+}) {
+  const { data: username } = useUsernameQuery(entry.address);
+
+  return (
+    <Link href={`/u/${entry.address}`}>
+      <div className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors hover:bg-secondary ${
+        rank === 0 ? "bg-primary/5 border border-primary/20" : "bg-card"
+      }`}>
+        <div className="flex items-center gap-3">
+          <span className={`w-6 text-center text-sm font-bold ${
+            rank === 0 ? "text-yellow-400" : rank === 1 ? "text-slate-400" : rank === 2 ? "text-amber-600" : "text-muted-foreground"
+          }`}>
+            {rank + 1}
+          </span>
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <span>{username ?? truncateAddress(entry.address)}</span>
+              <TierBadge tier={entry.tier} size="sm" />
+            </div>
+            {username && (
+              <span className="text-xs text-muted-foreground">
+                {truncateAddress(entry.address)}
+              </span>
+            )}
+          </div>
+        </div>
+        <span className="text-sm font-bold">
+          {tab === "xp" && `${entry.xp} XP`}
+          {tab === "circles" && `${entry.circles} circles`}
+          {tab === "streak" && `${entry.streak} streak`}
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 type Tab = "xp" | "circles" | "streak";
 
@@ -120,33 +165,7 @@ export default function LeaderboardPage() {
       ) : (
         <div className="space-y-2">
           {sorted.map((entry, rank) => (
-            <Link key={entry.address} href={`/u/${entry.address}`}>
-              <div className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors hover:bg-secondary ${
-                rank === 0 ? "bg-primary/5 border border-primary/20" : "bg-card"
-              }`}>
-                <div className="flex items-center gap-3">
-                  <span className={`w-6 text-center text-sm font-bold ${
-                    rank === 0 ? "text-yellow-400" : rank === 1 ? "text-slate-400" : rank === 2 ? "text-amber-600" : "text-muted-foreground"
-                  }`}>
-                    {rank + 1}
-                  </span>
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <InitUsername address={entry.address} />
-                      <TierBadge tier={entry.tier} size="sm" />
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {truncateAddress(entry.address)}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-sm font-bold">
-                  {tab === "xp" && `${entry.xp} XP`}
-                  {tab === "circles" && `${entry.circles} circles`}
-                  {tab === "streak" && `${entry.streak} streak`}
-                </span>
-              </div>
-            </Link>
+            <LeaderboardRow key={entry.address} entry={entry} rank={rank} tab={tab} />
           ))}
         </div>
       )}

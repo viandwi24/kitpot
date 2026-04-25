@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/layout/header";
+import { NetworkWarning } from "@/components/layout/network-warning";
 import { XPToastContainer } from "@/components/gamification/xp-toast";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           <Header />
+          <NetworkWarning />
           <XPToastContainer />
           <main className="min-h-screen">{children}</main>
         </Providers>

@@ -61,16 +61,21 @@ export function getWalletClient(accountIndex: number) {
 
 export function loadDeployed(): {
   MockUSDC: `0x${string}`;
+  MockUSDe: `0x${string}`;
   KitpotReputation: `0x${string}`;
   KitpotAchievements: `0x${string}`;
   KitpotCircle: `0x${string}`;
 } {
   if (NETWORK === "testnet") {
+    // Verified on-chain via eth_getCode 2026-04-25 — addresses below are the
+    // live, working contracts. Older entries in apps/web/.env.local point at
+    // dead addresses (no code) and need to be refreshed for production.
     return {
-      MockUSDC:           "0xE6353667eb88884374e89b98Cc69daee59752309",
-      KitpotReputation:   "0xE2216861FBa926b09D5bFA96C2AACe34F6a7CC46",
-      KitpotAchievements: "0xc0f72f9fD514E86Ab19a77993E1f35f94D19A5Fc",
-      KitpotCircle:       "0x18c83c7b9f2AFBb22bB42d1BB58aaA6332D590Da",
+      MockUSDC:           "0xe7bf5d16190f4d7d4c1ae99250405702d2f0a442",
+      MockUSDe:           "0x85b10791e3B782B9ddB3877E28D1088E75074B54",
+      KitpotReputation:   "0x073aa6cfcf9e663cc24b9eb72b8e71e6d9ba072d",
+      KitpotAchievements: "0x956a0285b10c8afaeadef98a77b1da48642dd97a",
+      KitpotCircle:       "0x62d244f304bc7638d44f5e335dfadf8c9dcef990",
     };
   }
   try {

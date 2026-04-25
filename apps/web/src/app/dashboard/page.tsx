@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Wallet, Star, CheckCircle, Trophy, Search, User, ArrowLeftRight, Plus, Activity, Zap, Shield, Flame, Gift } from "lucide-react";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { useReputation, TIER_NAMES, TIER_COLORS, LEVEL_NAMES, LEVEL_XP_THRESHOLDS } from "@/hooks/use-reputation";
 import { useCircleCount, useMyCircles, getTokenSymbol } from "@/hooks/use-circles";
@@ -10,10 +10,11 @@ import { useAchievementTokenIds, ACHIEVEMENT_NAMES, ACHIEVEMENT_ICONS } from "@/
 import { LevelBadge } from "@/components/gamification/level-badge";
 import { StreakFlame } from "@/components/gamification/streak-flame";
 import { DailyQuestPanel } from "@/components/gamification/daily-quest-panel";
+import { InitUsername } from "@/components/username/init-username";
 import { Button } from "@/components/ui/button";
 import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { KITPOT_ABI } from "@/lib/abi/KitpotCircle";
-import { CONTRACTS } from "@/lib/contracts";
+import { CONTRACTS, PAYMENT_TOKENS } from "@/lib/contracts";
 import { truncateAddress, formatUSDC } from "@/lib/utils";
 
 const TIER_GLOWS: Record<number, string> = {
@@ -131,13 +132,15 @@ export default function DashboardPage() {
   const { data: rep } = useReputation(address);
   const { data: circleCount } = useCircleCount();
   const { myCircleIds } = useMyCircles(address, Number(circleCount ?? 0));
-  const { data: usdcBalance } = useReadContract({
-    address: CONTRACTS.mockUSDC,
-    abi: MOCK_USDC_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
+  const { data: tokenBalances } = useReadContracts({
+    contracts: PAYMENT_TOKENS.map((t) => ({
+      address: t.address,
+      abi: MOCK_USDC_ABI,
+      functionName: "balanceOf" as const,
+      args: address ? [address] : undefined,
+    })),
     query: { enabled: !!address },
-  }) as { data: bigint | undefined };
+  });
 
   if (!isConnected || !address) {
     return (
@@ -173,7 +176,14 @@ export default function DashboardPage() {
       : 100;
 
   const activeCircles = myCircleIds.slice(0, 5);
-  const usdcFormatted = usdcBalance !== undefined ? parseFloat(formatUnits(usdcBalance, 6)).toFixed(2) : "—";
+  const formattedBalances = PAYMENT_TOKENS.map((t, i) => {
+    const result = tokenBalances?.[i];
+    const bal = result?.status === "success" ? (result.result as bigint) : undefined;
+    return {
+      symbol: t.symbol,
+      formatted: bal !== undefined ? parseFloat(formatUnits(bal, t.decimals)).toFixed(2) : "—",
+    };
+  });
 
   return (
     <div className="relative mx-auto max-w-5xl px-4 py-8 space-y-6">
@@ -197,7 +207,7 @@ export default function DashboardPage() {
           {/* Name + level */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-sm text-muted-foreground">{truncateAddress(address)}</span>
+              <span className="font-mono text-sm text-muted-foreground"><InitUsername address={address} /></span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary ${TIER_COLORS[tier]}`}>
                 {TIER_NAMES[tier]}
               </span>
@@ -223,8 +233,19 @@ export default function DashboardPage() {
 
       {/* ── STATS ROW ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/50 bg-card p-4 space-y-1 hover:border-primary/20 transition-colors">
+          <Wallet className="h-4 w-4 text-emerald-400" />
+          <div className="space-y-0.5">
+            {formattedBalances.map((b) => (
+              <div key={b.symbol} className="flex items-baseline gap-1">
+                <span className="text-lg font-bold text-emerald-400">{b.formatted}</span>
+                <span className="text-xs text-muted-foreground">{b.symbol}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-xs text-muted-foreground">Stablecoins</div>
+        </div>
         {([
-          { Icon: Wallet, label: "USDC Balance", value: usdcFormatted, color: "text-emerald-400", iconColor: "text-emerald-400" },
           { Icon: Zap, label: "Total XP", value: xpNum.toLocaleString(), color: "text-primary", iconColor: "text-primary" },
           { Icon: CheckCircle, label: "On-time Rate", value: `${onTimeRate}%`, color: onTimeRate >= 90 ? "text-emerald-400" : "text-yellow-400", iconColor: "text-emerald-400" },
           { Icon: Trophy, label: "Circles Done", value: rep.totalCirclesCompleted.toString(), color: "text-amber-400", iconColor: "text-amber-400" },

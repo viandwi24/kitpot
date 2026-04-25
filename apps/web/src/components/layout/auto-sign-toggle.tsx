@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { getNetworkConfig } from "@/lib/network";
 
 const CHAIN_ID = getNetworkConfig().cosmosChainId;
+const PENDING_TIMEOUT_MS = 90_000;
 
 // Permissions scope is declared at provider level via `enableAutoSign` prop
 // (see providers.tsx). SDK @2.8.0 does NOT accept a second-arg options object
@@ -12,10 +14,31 @@ const CHAIN_ID = getNetworkConfig().cosmosChainId;
 
 export function AutoSignToggle() {
   const { autoSign, isConnected } = useInterwovenKit();
-  if (!isConnected || !autoSign) return null;
+  const [pending, setPending] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const enabled = autoSign.isEnabledByChain[CHAIN_ID] ?? false;
-  const expiresAt = autoSign.expiredAtByChain[CHAIN_ID];
+  const enabled = autoSign?.isEnabledByChain[CHAIN_ID] ?? false;
+  const expiresAt = autoSign?.expiredAtByChain[CHAIN_ID];
+
+  // When enabled flips true, clear pending state + timeout
+  useEffect(() => {
+    if (enabled && pending) {
+      setPending(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+  }, [enabled, pending]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  if (!isConnected || !autoSign) return null;
 
   async function toggle() {
     if (!autoSign) return;
@@ -34,24 +57,55 @@ export function AutoSignToggle() {
         throw err;
       }
     } else {
-      await autoSign.enable(CHAIN_ID);
+      setPending(true);
+      // Safety fallback: clear pending after 90s even if SDK never confirms
+      timeoutRef.current = setTimeout(() => {
+        setPending(false);
+        timeoutRef.current = null;
+      }, PENDING_TIMEOUT_MS);
+      try {
+        await autoSign.enable(CHAIN_ID);
+        // Do NOT setPending(false) here — leave pending until useEffect sees enabled flip
+      } catch {
+        setPending(false);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      }
     }
   }
+
+  const isPending = pending && !enabled;
 
   return (
     <button
       type="button"
       onClick={toggle}
-      disabled={autoSign.isLoading}
+      disabled={isPending || autoSign.isLoading}
       className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
         enabled
           ? "border-emerald-500 text-emerald-400"
-          : "border-border text-muted-foreground hover:text-foreground"
+          : isPending
+            ? "border-yellow-500/50 text-yellow-400 cursor-wait"
+            : "border-border text-muted-foreground hover:text-foreground"
       }`}
-      title={expiresAt ? `Expires ${expiresAt.toLocaleString()}` : undefined}
+      title={
+        isPending
+          ? "Waiting for grant tx to land on-chain (up to ~1 minute on testnet)"
+          : expiresAt
+            ? `Expires ${expiresAt.toLocaleString()}`
+            : undefined
+      }
     >
-      <span className={`size-2 rounded-full ${enabled ? "bg-emerald-500" : "bg-muted"}`} />
-      {enabled ? "Auto-sign ON" : "Enable auto-sign"}
+      <span className={`size-2 rounded-full ${
+        enabled
+          ? "bg-emerald-500"
+          : isPending
+            ? "bg-yellow-400 animate-pulse"
+            : "bg-muted"
+      }`} />
+      {enabled ? "Auto-sign ON" : isPending ? "Granting\u2026" : "Enable auto-sign"}
     </button>
   );
 }

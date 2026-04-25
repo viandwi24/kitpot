@@ -15,6 +15,15 @@ export interface NetworkConfig {
   };
 }
 
+/** EIP-3085 params for wallet_addEthereumChain — built from env vars. */
+export const KITPOT_EVM_CHAIN_PARAMS = {
+  chainId: `0x${Number(process.env.NEXT_PUBLIC_KITPOT_EVM_CHAIN_ID ?? "64146729809684").toString(16)}`,
+  chainName: "Kitpot Testnet",
+  nativeCurrency: { name: "GAS", symbol: "GAS", decimals: 18 },
+  rpcUrls: [process.env.NEXT_PUBLIC_KITPOT_JSON_RPC ?? ""],
+  blockExplorerUrls: [] as string[],
+} as const;
+
 export function getNetworkConfig(): NetworkConfig {
   return {
     cosmosChainId: process.env.NEXT_PUBLIC_KITPOT_COSMOS_CHAIN_ID ?? "kitpot-2",

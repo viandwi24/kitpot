@@ -11,6 +11,7 @@ import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { formatUSDC, truncateAddress } from "@/lib/utils";
 import { CONTRACTS } from "@/lib/contracts";
 import { getTokenSymbol, type CircleData } from "@/hooks/use-circles";
+import { parseTxError } from "@/lib/tx-errors";
 
 interface JoinFormProps {
   circleId: bigint;
@@ -31,6 +32,14 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
 
   const initUsername = username ? `${username}` : (evmAddress ? truncateAddress(evmAddress) : "");
 
+  const { data: tokenBalance } = useReadContract({
+    address: circle.tokenAddress,
+    abi: MOCK_USDC_ABI,
+    functionName: "balanceOf",
+    args: evmAddress ? [evmAddress] : undefined,
+    query: { enabled: !!evmAddress },
+  }) as { data: bigint | undefined };
+
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: circle.tokenAddress,
     abi: MOCK_USDC_ABI, // same ABI shape for all mock ERC20s
@@ -40,6 +49,8 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
   });
 
   const needsApproval = allowance !== undefined && allowance < circle.contributionAmount;
+  const insufficientBalance = tokenBalance !== undefined && tokenBalance < circle.contributionAmount;
+  const circleFull = circle.memberCount >= circle.maxMembers;
 
   useEffect(() => {
     if (success) router.push(`/circles/${circleId.toString()}`);
@@ -58,7 +69,8 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
       await joinCircle(circleId, initUsername);
       setSuccess(true);
     } catch (err: unknown) {
-      setSubmitError(err instanceof Error ? err.message : "Transaction failed");
+      const parsed = parseTxError(err);
+      setSubmitError(parsed.hint);
     } finally {
       setSubmitting(false);
       setStatusMsg("");
@@ -104,14 +116,31 @@ export function JoinForm({ circleId, circle }: JoinFormProps) {
           </p>
         )}
 
-        {(error || submitError) && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            <p className="font-medium">Transaction failed</p>
-            <p className="mt-1 text-xs opacity-80">{(error?.message || submitError || "").slice(0, 200)}</p>
+        {circleFull && (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+            <p className="font-medium">Circle full</p>
+            <p className="mt-1 text-xs">This circle has reached its maximum number of members.</p>
           </div>
         )}
 
-        <Button onClick={handleJoin} className="w-full" disabled={submitting || isPending || !evmAddress}>
+        {insufficientBalance && !circleFull && (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+            <p className="font-medium">Insufficient {tokenSymbol} balance</p>
+            <p className="mt-1 text-xs">
+              You don&apos;t have enough {tokenSymbol} for collateral.{" "}
+              <a href="/bridge" className="underline hover:text-yellow-100">Mint at Faucet</a>
+            </p>
+          </div>
+        )}
+
+        {(error || submitError) && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <p className="font-medium">Transaction failed</p>
+            <p className="mt-1 text-xs opacity-80">{parseTxError(error ?? submitError).hint}</p>
+          </div>
+        )}
+
+        <Button onClick={handleJoin} className="w-full" disabled={submitting || isPending || !evmAddress || insufficientBalance || circleFull}>
           {buttonLabel()}
         </Button>
       </CardContent>

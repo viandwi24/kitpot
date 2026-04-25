@@ -15,6 +15,7 @@ import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { useAccount } from "wagmi";
 import { truncateAddress } from "@/lib/utils";
+import { parseTxError } from "@/lib/tx-errors";
 
 const CYCLE_PRESETS = [
   { label: "Demo (60s)", value: 60, grace: 30 },
@@ -55,6 +56,14 @@ export function CreateCircleForm() {
   const collateralNeeded = parseUnits(contributionAmount || "0", selectedToken.decimals);
   const initUsername = username ? `${username}` : (evmAddress ? truncateAddress(evmAddress) : "");
 
+  const { data: tokenBalance } = useReadContract({
+    address: selectedToken.address,
+    abi: MOCK_USDC_ABI,
+    functionName: "balanceOf",
+    args: evmAddress ? [evmAddress] : undefined,
+    query: { enabled: !!evmAddress },
+  }) as { data: bigint | undefined };
+
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: selectedToken.address,
     abi: MOCK_USDC_ABI, // same ABI shape for all mock ERC20s
@@ -64,6 +73,7 @@ export function CreateCircleForm() {
   });
 
   const needsApproval = allowance !== undefined && allowance < collateralNeeded;
+  const insufficientBalance = tokenBalance !== undefined && collateralNeeded > 0n && tokenBalance < collateralNeeded;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,7 +99,8 @@ export function CreateCircleForm() {
       });
       setSuccess(true);
     } catch (err: unknown) {
-      setSubmitError(err instanceof Error ? err.message : "Transaction failed");
+      const parsed = parseTxError(err);
+      setSubmitError(parsed.hint);
     } finally {
       setSubmitting(false);
     }
@@ -264,14 +275,24 @@ export function CreateCircleForm() {
             </p>
           )}
 
-          {(error || submitError) && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              <p className="font-medium">Transaction failed</p>
-              <p className="mt-1 text-xs opacity-80">{(error?.message || submitError || "").slice(0, 200)}</p>
+          {insufficientBalance && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+              <p className="font-medium">Insufficient {selectedToken.symbol} balance</p>
+              <p className="mt-1 text-xs">
+                You don&apos;t have enough {selectedToken.symbol} for collateral.{" "}
+                <a href="/bridge" className="underline hover:text-yellow-100">Mint at Faucet</a>
+              </p>
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={isBusy}>
+          {(error || submitError) && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <p className="font-medium">Transaction failed</p>
+              <p className="mt-1 text-xs opacity-80">{parseTxError(error ?? submitError).hint}</p>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isBusy || insufficientBalance}>
             {buttonLabel()}
           </Button>
         </form>

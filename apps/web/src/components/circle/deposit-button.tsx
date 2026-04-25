@@ -8,7 +8,8 @@ import { MOCK_USDC_ABI } from "@/lib/abi/MockUSDC";
 import { CONTRACTS } from "@/lib/contracts";
 import { useKitpotTx } from "@/hooks/use-kitpot-tx";
 import { useHasPaid } from "@/hooks/use-circle-dashboard";
-import type { CircleData } from "@/hooks/use-circles";
+import { getTokenSymbol, type CircleData } from "@/hooks/use-circles";
+import { parseTxError } from "@/lib/tx-errors";
 
 interface DepositButtonProps {
   circleId: bigint;
@@ -18,10 +19,19 @@ interface DepositButtonProps {
 
 export function DepositButton({ circleId, circle, userAddress }: DepositButtonProps) {
   const { data: alreadyPaid, refetch: refetchPaid } = useHasPaid(circleId, circle.currentCycle, userAddress);
-  const { deposit, approveUSDC, isPending, error } = useKitpotTx();
+  const { deposit, approveToken, isPending, error } = useKitpotTx();
+  const tokenSymbol = getTokenSymbol(circle.tokenAddress);
+
+  const { data: tokenBalance } = useReadContract({
+    address: circle.tokenAddress,
+    abi: MOCK_USDC_ABI,
+    functionName: "balanceOf",
+    args: userAddress ? [userAddress] : undefined,
+    query: { enabled: !!userAddress },
+  }) as { data: bigint | undefined };
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: CONTRACTS.mockUSDC,
+    address: circle.tokenAddress,
     abi: MOCK_USDC_ABI,
     functionName: "allowance",
     args: userAddress ? [userAddress, CONTRACTS.kitpotCircle] : undefined,
@@ -29,10 +39,12 @@ export function DepositButton({ circleId, circle, userAddress }: DepositButtonPr
   });
 
   const needsApproval = allowance !== undefined && allowance < circle.contributionAmount;
+  const insufficientBalance = tokenBalance !== undefined && tokenBalance < circle.contributionAmount;
 
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [depositError, setDepositError] = useState<string | null>(null);
 
   if (!userAddress || alreadyPaid || done) {
     return (
@@ -45,10 +57,11 @@ export function DepositButton({ circleId, circle, userAddress }: DepositButtonPr
   async function handleDeposit() {
     if (!userAddress) return;
     setSubmitting(true);
+    setDepositError(null);
     try {
       if (needsApproval) {
         setStatusMsg("Approving...");
-        await approveUSDC(CONTRACTS.kitpotCircle, maxUint256);
+        await approveToken(circle.tokenAddress, CONTRACTS.kitpotCircle, maxUint256);
         await refetchAllowance();
       }
 
@@ -57,7 +70,8 @@ export function DepositButton({ circleId, circle, userAddress }: DepositButtonPr
       await refetchPaid();
       setDone(true);
     } catch (err) {
-      alert(err instanceof Error ? err.message.slice(0, 200) : "Transaction failed");
+      const parsed = parseTxError(err);
+      setDepositError(parsed.hint);
     } finally {
       setSubmitting(false);
       setStatusMsg("");
@@ -65,8 +79,19 @@ export function DepositButton({ circleId, circle, userAddress }: DepositButtonPr
   }
 
   return (
-    <Button size="sm" className="flex-1" disabled={submitting || isPending} onClick={handleDeposit}>
-      {submitting || isPending ? (statusMsg || "Processing...") : "Pay Contribution"}
-    </Button>
+    <div className="flex flex-col gap-2 flex-1">
+      {insufficientBalance && (
+        <p className="text-xs text-yellow-400">
+          Not enough {tokenSymbol}.{" "}
+          <a href="/bridge" className="underline">Mint at Faucet</a>
+        </p>
+      )}
+      {depositError && (
+        <p className="text-xs text-destructive">{depositError}</p>
+      )}
+      <Button size="sm" className="w-full" disabled={submitting || isPending || insufficientBalance} onClick={handleDeposit}>
+        {submitting || isPending ? (statusMsg || "Processing...") : "Pay Contribution"}
+      </Button>
+    </div>
   );
 }
