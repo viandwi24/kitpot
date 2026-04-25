@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatUSDC } from "@/lib/utils";
+import { InitUsername } from "@/components/username/init-username";
 import { getTokenSymbol, type CircleData, type MemberData } from "@/hooks/use-circles";
 
 interface CircleHistoryProps {
@@ -31,9 +32,11 @@ export function CircleHistory({ circle, members }: CircleHistoryProps) {
               <div key={i} className="flex items-center justify-between rounded-xl bg-secondary px-4 py-2.5">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-muted-foreground">Cycle {i + 1}</span>
-                  <span className="font-medium">
-                    {member?.initUsername || member?.addr.slice(0, 10) || "..."}
-                  </span>
+                  {member?.addr ? (
+                    <InitUsername address={member.addr} className="font-medium" />
+                  ) : (
+                    <span className="font-medium">...</span>
+                  )}
                 </div>
                 <span className="text-sm text-primary">{formatUSDC(payout)} {getTokenSymbol(circle.tokenAddress)}</span>
               </div>

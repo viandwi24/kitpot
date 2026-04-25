@@ -10,13 +10,11 @@ import { StreakFlame } from "@/components/gamification/streak-flame";
 import { InitUsername } from "@/components/username/init-username";
 import { AchievementGallery } from "@/components/achievements/achievement-gallery";
 import { formatUSDC, truncateAddress } from "@/lib/utils";
-import { useUsernameQuery } from "@initia/interwovenkit-react";
 
 export default function ProfilePage({ params }: { params: Promise<{ address: string }> }) {
   const { address: rawAddress } = use(params);
   const address = rawAddress as `0x${string}`;
   const { data: rep } = useReputation(address);
-  const { data: initUsername } = useUsernameQuery(address);
 
   if (!rep) {
     return <p className="py-12 text-center text-muted-foreground">Loading profile...</p>;
@@ -46,7 +44,7 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">
-              <InitUsername address={address} />
+              <InitUsername address={address} noLink />
             </h1>
             <TierBadge tier={tier} size="md" />
           </div>
@@ -115,11 +113,9 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
       {/* Achievements */}
       <AchievementGallery address={address} />
 
-      {initUsername && (
-        <p className="text-center text-xs text-muted-foreground">
-          {truncateAddress(address)}
-        </p>
-      )}
+      <p className="text-center text-xs text-muted-foreground font-mono break-all select-all">
+        {address}
+      </p>
     </div>
   );
 }

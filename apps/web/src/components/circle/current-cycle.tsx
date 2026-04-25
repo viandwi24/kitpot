@@ -8,6 +8,7 @@ import { DepositButton } from "./deposit-button";
 import { ClaimPotButton } from "./claim-pot-button";
 import { SubstituteClaimButton } from "./substitute-claim-button";
 import { CycleCountdown } from "./cycle-countdown";
+import { InitUsername } from "@/components/username/init-username";
 import { getTokenSymbol, type CircleData, type MemberData } from "@/hooks/use-circles";
 
 interface CurrentCycleProps {
@@ -58,7 +59,9 @@ export function CurrentCycle({ circle, members, circleId, userAddress }: Current
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-muted-foreground">Pot Recipient</p>
-            <p className="font-medium">{recipientMember?.initUsername || recipient?.slice(0, 10) || "..."}</p>
+            <p className="font-medium">
+              {recipient ? <InitUsername address={recipient} /> : "..."}
+            </p>
           </div>
           <div>
             <p className="text-muted-foreground">Total Pot</p>
