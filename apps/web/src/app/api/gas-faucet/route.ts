@@ -165,10 +165,15 @@ export async function POST(req: NextRequest) {
 
     claims.set(cooldownKey, Date.now());
 
-    // Mint stablecoins (best-effort, never blocks GAS drip response)
-    const receiverHex = inputAddr.startsWith("0x")
-      ? (inputAddr as `0x${string}`)
-      : bech32ToHex(receiverBech32);
+    // Mint stablecoins (best-effort, never blocks GAS drip response).
+    // Always lowercase: viem rejects mixed-case hex that is not a valid EIP-55
+    // checksum, and bech32ToHex returns lowercase already, so normalising here
+    // keeps both input paths consistent.
+    const receiverHex = (
+      inputAddr.startsWith("0x")
+        ? (inputAddr.toLowerCase() as `0x${string}`)
+        : bech32ToHex(receiverBech32)
+    );
 
     let stablecoinMints: Record<string, { tx: string; amount: string } | { error: string }> = {};
     if (receiverHex) {
