@@ -97,12 +97,12 @@ export function LandingSections() {
             {
               step: "01",
               title: "Create & Invite",
-              description: "Start a circle, set the contribution amount, and invite members by their .init username.",
+              description: "Start a circle, set the contribution amount and cycle, then share the join link with friends.",
             },
             {
               step: "02",
               title: "Auto-Sign Once",
-              description: "Each member approves a single session. No more monthly wallet pop-ups, ever.",
+              description: "Each member approves a single session grant. Per-cycle deposits then sign silently while the tab is open.",
             },
             {
               step: "03",
@@ -137,10 +137,10 @@ export function LandingSections() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            { title: "Auto-Signing Sessions", description: "Approve once, run for 12 months. Like subscribing to Netflix — no monthly wallet pop-ups.", tag: "UX" },
-            { title: ".init Usernames", description: "Invite friends by name, not wallet address. As natural as mentioning someone on social media.", tag: "Social" },
-            { title: "Interwoven Bridge", description: "Deposit from Initia hub to kitpot-1 rollup via IBC. Users never see two chains.", tag: "IBC" },
-            { title: "Social Login", description: "Google, email, or Apple sign-in. No MetaMask, no seed phrases, no crypto knowledge needed.", tag: "Onboard" },
+            { title: "Auto-Signing Sessions", description: "Approve once per session via Initia's native authz + feegrant. While the tab is open, every cycle deposit signs silently — no per-cycle wallet pop-ups.", tag: "UX" },
+            { title: ".init Usernames", description: "Display members by their Initia .init name when they have one registered, instead of raw wallet hex. Resolved natively via InterwovenKit's L1 username registry.", tag: "Social" },
+            { title: "Interwoven Bridge", description: "Bidirectional bridge UI on the Faucet page — Deposit native uinit from Initia L1 (initiation-2) to the kitpot-2 rollup, or Withdraw back to L1.", tag: "Bridge" },
+            { title: "Social Login", description: "Google, email, or Apple sign-in via Privy. No MetaMask required, no seed phrases — Privy creates an embedded wallet on first login.", tag: "Onboard" },
           ].map((feature, i) => (
             <AnimateIn key={feature.title} delay={i * 0.08}>
               <div className="rounded-2xl border border-border/60 bg-card p-7 transition-all duration-300 hover:border-primary/30">
